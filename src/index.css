@@ -10,7 +10,9 @@
   --color-secondary: rgb(1,152,142);
   --color-accent: #fff;
   --color-danger: #ef4444;
-  --font-arabic: 'Neo Sans Arabic Regular';
+  --font-arabic1: 'Neo Sans Arabic Regular';
+  --font-arabic2: 'amiri';
+
 }
 .primaryColor{
   background-color: var(--color-accent);
@@ -34,9 +36,11 @@ input:focus{
   color: var(--color-danger);
 }
 .amiriFont{
-  font-family: var(--font-arabic);
+  font-family: var(--font-arabic1);
   font-weight: 500;
 }
+
+
 .amiriInput {
   border-radius: 3px !important;
   border: 1.5px solid #000 !important;
@@ -48,7 +52,7 @@ body {
     width: 100vw;
     height: 100vh;
     min-height: 100vh;
-  background-color: gray;
+  background-color: rgb(255, 255, 255);
  
 }
 
