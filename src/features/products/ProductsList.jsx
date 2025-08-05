@@ -1,7 +1,9 @@
-export default function ProductsList(){
-    return(
-        <div>
-<h1>ProductsList</h1>
-        </div>
-    );
+import MainLayout from "../../components/shared/MainLayout";
+
+export default function ProductsList() {
+  return (
+    <MainLayout>
+      <div className="text-white">{/* محتوى لوحة التحكم */} المنتجات</div>
+    </MainLayout>
+  );
 }

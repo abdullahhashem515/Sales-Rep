@@ -32,6 +32,10 @@ input:focus{
 .accentColor{
   background-color: var(--color-secondary);
 }
+button.accentColor:hover{
+  background-color: var(--color-primary);
+  border: 2px solid var(--color-accent);
+}
 .errorColor{
   color: var(--color-danger);
 }
