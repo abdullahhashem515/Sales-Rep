@@ -167,7 +167,7 @@ export default function UsersList() {
               <tr className="accentColor text-white">
                 <th className="py-3 px-4 text-right">#</th>
                 <th className="py-3 px-4 text-right">الاسم الكامل</th>
-                <th className="py-3 px-4 text-right">رقم الجوال</th> {/* NEW: Added Phone Number header */}
+                <th className="py-3 px-4 text-right">رقم الجوال</th>
                 <th className="py-3 px-4 text-right">اسم المستخدم</th>
                 <th className="py-3 px-4 text-right">الدور</th>
                 <th className="py-3 px-4 text-right">حالة الحساب</th>
@@ -180,7 +180,7 @@ export default function UsersList() {
                 <tr key={user.id} className="border-b border-gray-700">
                   <td className="py-3 px-4">{user.id}</td>
                   <td className="py-3 px-4">{user.fullName}</td>
-                  <td className="py-3 px-4">{user.phone}</td> {/* NEW: Display phone number */}
+                  <td className="py-3 px-4">{user.phone}</td>
                   <td className="py-3 px-4">{user.username}</td>
                   <td className="py-3 px-4">{user.role}</td>
                   <td className="py-3 px-4">

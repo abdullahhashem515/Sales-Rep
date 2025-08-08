@@ -1,11 +1,12 @@
 // src/services/validationService.js
+// تم إلغاء استيراد checkPhoneExistsApi بما أنه لن يتم استخدام التحقق عبر API هنا.
 
 /**
  * دالة شاملة للتحقق من صحة نموذج إضافة المستخدم.
  * @param {object} formData - كائن يحتوي على جميع بيانات النموذج.
  * @returns {object} - كائن يحتوي على رسائل الخطأ، أو يكون فارغًا إذا لم توجد أخطاء.
  */
-export const validateAddUserForm = (formData) => {
+export const validateAddUserForm = (formData) => { // تم إزالة 'token' من المعاملات
   const errors = {};
 
   // Validation: Full Name not empty
@@ -19,11 +20,13 @@ export const validateAddUserForm = (formData) => {
   } else if (!/^[7][0-9]{8}$/.test(formData.phoneNumber)) {
     errors.phoneNumber = 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 7.';
   }
+  // تم إزالة منطق التحقق من فرادة رقم الجوال عبر API من الواجهة الأمامية.
+  // إذا كان رقم الجوال مكررًا، ستأتي رسالة الخطأ من الواجهة الخلفية.
 
   // Validation: Email format
   if (!formData.email.trim()) {
     errors.email = 'البريد الإلكتروني مطلوب.';
-  } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+  } else if (!/\S+@\S+\.\S/.test(formData.email)) {
     errors.email = 'صيغة البريد الإلكتروني غير صحيحة.';
   }
 
