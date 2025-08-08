@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
+import { toast } from 'react-toastify'; // NEW: Import toast for notifications
 
 import {
   Card,
@@ -38,6 +39,13 @@ export function Menubar() {
   // دالة لفتح وإغلاق القوائم
   const handleOpen = (value) => {
     setOpen(open === value ? 0 : value);
+  };
+
+  // NEW: دالة لتسجيل الخروج
+  const handleLogout = () => {
+    localStorage.removeItem('userToken'); // إزالة التوكن من التخزين المحلي
+    toast.info('تم تسجيل الخروج بنجاح.'); // عرض رسالة تنبيه
+    navigate("/login"); // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
   };
 
   return (
@@ -174,7 +182,7 @@ export function Menubar() {
           <ListItemPrefix>
             <TruckIcon className="h-5 w-5" />
           </ListItemPrefix>
-المخزون        </ListItem>
+          المخزون         </ListItem>
         <ListItem
           className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
           onClick={() => navigate("/representatives")}
@@ -205,7 +213,10 @@ export function Menubar() {
           المستخدمين
         </ListItem>
 
-        <ListItem className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
+        <ListItem
+          className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={handleLogout} // NEW: Call handleLogout function on click
+        >
           <ListItemPrefix>
             <PowerIcon className="h-5 w-5" />
           </ListItemPrefix>
