@@ -1,12 +1,11 @@
 // src/services/validationService.js
-// تم إلغاء استيراد checkPhoneExistsApi بما أنه لن يتم استخدام التحقق عبر API هنا.
 
 /**
  * دالة شاملة للتحقق من صحة نموذج إضافة المستخدم.
  * @param {object} formData - كائن يحتوي على جميع بيانات النموذج.
  * @returns {object} - كائن يحتوي على رسائل الخطأ، أو يكون فارغًا إذا لم توجد أخطاء.
  */
-export const validateAddUserForm = (formData) => { // تم إزالة 'token' من المعاملات
+export const validateAddUserForm = (formData) => {
   const errors = {};
 
   // Validation: Full Name not empty
@@ -20,38 +19,43 @@ export const validateAddUserForm = (formData) => { // تم إزالة 'token' م
   } else if (!/^[7][0-9]{8}$/.test(formData.phoneNumber)) {
     errors.phoneNumber = 'رقم الجوال يجب أن يكون 9 أرقام ويبدأ بـ 7.';
   }
-  // تم إزالة منطق التحقق من فرادة رقم الجوال عبر API من الواجهة الأمامية.
-  // إذا كان رقم الجوال مكررًا، ستأتي رسالة الخطأ من الواجهة الخلفية.
 
-  // Validation: Email format
-  if (!formData.email.trim()) {
-    errors.email = 'البريد الإلكتروني مطلوب.';
-  } else if (!/\S+@\S+\.\S/.test(formData.email)) {
-    errors.email = 'صيغة البريد الإلكتروني غير صحيحة.';
+  // Validation: Email format - ONLY REQUIRED IF ROLE IS 'مدير'
+  if (formData.role === 'مدير') {
+    // NEW: Add a defensive check to ensure formData.email is a string before trimming
+    // If it's not a string or if it's an empty string after trimming, mark as error
+    if (typeof formData.email !== 'string' || !formData.email.trim()) {
+      errors.email = 'البريد الإلكتروني مطلوب لدور المدير.';
+    } else if (!/\S+@\S+\.\S/.test(formData.email)) {
+      errors.email = 'صيغة البريد الإلكتروني غير صحيحة.';
+    }
   }
 
   // Validation: Role specific for this API
-  if (formData.role === 'مدير') {
-    errors.role = 'لا يمكن تسجيل "مدير" عبر هذا النموذج. يرجى اختيار دور آخر.';
-  } else if (formData.role !== 'مندوب جملة' && formData.role !== 'مندوب التجزئة') {
+  if (formData.role !== 'مدير' && formData.role !== 'مندوب جملة' && formData.role !== 'مندوب التجزئة') {
     errors.role = 'الدور غير صالح.';
   }
 
   // Validation: Password not empty and minimum length
-  if (!formData.password.trim()) {
-    errors.password = 'كلمة المرور مطلوبة.';
-  } else if (formData.password.length < 8) { // Assuming minimum password length is 8 characters
+  // Note: Passwords are not part of UpdateUserModel's form by default,
+  // so these errors might only be relevant for AddUserModal.
+  if (!formData.password?.trim()) { // Use optional chaining for safety if password might be undefined
+    // Check if password field exists in formData (only for AddUserModal usually)
+    if (formData.password !== undefined) { // Only show error if password field was expected
+        errors.password = 'كلمة المرور مطلوبة.';
+    }
+  } else if (formData.password?.length < 8) {
     errors.password = 'كلمة المرور يجب أن لا تقل عن 8 أحرف.';
   }
 
   // Validation: Confirm Password not empty and matches password
-  if (!formData.confirmPassword.trim()) {
-    errors.confirmPassword = 'تأكيد كلمة المرور مطلوب.';
+  if (!formData.confirmPassword?.trim()) { // Use optional chaining for safety
+    if (formData.confirmPassword !== undefined) { // Only show error if confirmPassword was expected
+        errors.confirmPassword = 'تأكيد كلمة المرور مطلوب.';
+    }
   } else if (formData.password !== formData.confirmPassword) {
     errors.confirmPassword = 'كلمة المرور وتأكيدها غير متطابقتين.';
   }
 
   return errors;
 };
-
-// يمكنك إضافة دوال تحقق أخرى (مثل validateLoginForm, validateProductForm, etc.) هنا

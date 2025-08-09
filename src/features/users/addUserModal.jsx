@@ -31,7 +31,7 @@ export default function AddUserModal({ show, onClose }) {
       setFullName('');
       setPhoneNumber('');
       setEmail('');
-      setRole('مدير');
+      setRole('مدير'); // Reset to default role (مدير)
       setPassword('');
       setConfirmPassword('');
       setAccountStatus('نشط');
@@ -56,24 +56,35 @@ export default function AddUserModal({ show, onClose }) {
       setGeneralError(''); // Reset general API error
 
       // Collect form data to pass to validation service
+      // Note: email will be empty if role is not 'مدير' due to conditional rendering
       const formData = {
           fullName,
           phoneNumber,
-          email,
-          role, // Pass role as is, validation service will handle type_user mapping
+          email, // Email might be empty if not 'مدير'
+          role,
           password,
           confirmPassword,
           accountStatus,
       };
 
-      // Log the form data for debugging
       console.log("Form Data:", formData);
 
-      setIsLoading(true); // Set loading state to true for client-side validation too (as it's async)
+      // Validate form using the external validation service
+      // The validation service will only validate email if role is 'مدير'
+      const validationErrors = validateAddUserForm(formData);
+      setErrors(validationErrors);
+      console.log("Validation Errors Object:", validationErrors);
+
+      if (Object.keys(validationErrors).length > 0) {
+          toast.error('يرجى تصحيح الأخطاء في النموذج.');
+          return;
+      }
+
+      setIsLoading(true);
 
       try {
-          const token = localStorage.getItem('userToken'); // Get token from localStorage
-          console.log("Retrieved Token from localStorage:", token); // Log the token
+          const token = localStorage.getItem('userToken');
+          console.log("Retrieved Token from localStorage:", token);
 
           if (!token) {
               const authError = 'لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.';
@@ -83,18 +94,6 @@ export default function AddUserModal({ show, onClose }) {
               return;
           }
 
-          // Validate form using the external asynchronous validation service
-          // Pass the token to the validation service for uniqueness check
-          const validationErrors = await validateAddUserForm(formData, token); // NOW AWAITING VALIDATION
-          setErrors(validationErrors); // Set validation errors to state
-          console.log("Validation Errors Object (after async check):", validationErrors); // Log the errors object
-
-          if (Object.keys(validationErrors).length > 0) {
-              toast.error('يرجى تصحيح الأخطاء في النموذج.');
-              setIsLoading(false); // Stop loading if validation fails
-              return; // Stop if validation fails
-          }
-
           // Map front-end role to backend's type_user for the API call
           let typeUserValue = '';
           if (formData.role === 'مندوب جملة') {
@@ -102,18 +101,14 @@ export default function AddUserModal({ show, onClose }) {
           } else if (formData.role === 'مندوب التجزئة') {
               typeUserValue = 'retail_rep';
           } else {
-              // This case should ideally be caught by validationService, but good for robustness
-              const roleErrorMsg = 'الدور المحدد غير صالح للـ API (يجب أن يكون مندوب جملة أو مندوب التجزئة).';
-              setGeneralError(roleErrorMsg);
-              toast.error(roleErrorMsg);
-              setIsLoading(false);
-              return;
+              // NEW LOGIC: If role is not specific, assume 'admin' for backend
+              typeUserValue = 'admin'; // Assuming 'مدير' maps to 'admin' in backend
           }
 
           // Construct the data payload for the backend API based on backend expectations
           const apiPayload = {
               name: formData.fullName,
-              email: formData.email,
+              email: formData.email, // Email will be sent as empty string if not 'مدير'
               phone: formData.phoneNumber,
               password: formData.password,
               confirm_password: formData.confirmPassword,
@@ -121,33 +116,30 @@ export default function AddUserModal({ show, onClose }) {
               status: formData.accountStatus === 'نشط' ? 'active' : 'inactive',
           };
 
-          console.log("API Payload being sent:", apiPayload); // Log the payload
+          console.log("API Payload being sent:", apiPayload);
 
-          // Make API call using the generic 'post' function
-          // Endpoint is 'admin/register-user' as per successful Postman test
           const response = await post('admin/register-user', apiPayload, token);
 
-          if (response.status) { // Assuming 'status: true' indicates success from your backend
+          if (response.status) {
               toast.success('تم إنشاء المستخدم بنجاح!');
-              handleClose(); // Close modal on successful submission
+              handleClose();
           } else {
-              // Handle specific error messages from the backend if API returns status: false
               const apiErrorMessage = response.message || 'فشل إنشاء المستخدم.';
               setGeneralError(apiErrorMessage);
               toast.error(apiErrorMessage);
           }
       } catch (error) {
           console.error("Error creating user:", error);
-          // Errors from apiService's generic functions are already processed and re-thrown with a 'message' property
           const errorMessage = error.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
           setGeneralError(errorMessage);
           toast.error(errorMessage);
       } finally {
-          setIsLoading(false); // Always set loading to false
+          setIsLoading(false);
       }
   };
 
   // Construct fields configuration for the FormLayout
+  // Conditionally include the email field based on the selected role
   const fieldsConfig = [
     {
       fields: [
@@ -171,14 +163,7 @@ export default function AddUserModal({ show, onClose }) {
     },
     {
       fields: [
-        {
-          label: "البريد الإلكتروني",
-          type: "email",
-          placeholder: "البريد الإلكتروني",
-          value: email,
-          onChange: (e) => setEmail(e.target.value),
-          error: errors.email,
-        },
+        // Role select field is always present
         {
           label: "الدور",
           type: "select",
@@ -187,7 +172,16 @@ export default function AddUserModal({ show, onClose }) {
           options: ['مدير', 'مندوب جملة', 'مندوب التجزئة'],
           error: errors.role,
         },
-      ],
+        // Conditionally render Email field if role is 'مدير'
+        ...(role === 'مدير' ? [{
+          label: "البريد الإلكتروني",
+          type: "email",
+          placeholder: "البريد الإلكتروني",
+          value: email,
+          onChange: (e) => setEmail(e.target.value),
+          error: errors.email,
+        }] : []),
+      ].filter(Boolean), // Filter out any false/null values if email field is not rendered
     },
     {
       fields: [
