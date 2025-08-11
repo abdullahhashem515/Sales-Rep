@@ -49,10 +49,9 @@ export default function AddProductModal({ show, onClose, onAddProductConfirm, av
 
   // تعريف خيارات نوع المستخدم وقيمها API وعناوين العرض
   const typeUserOptions = [
-    { label: 'عام', value: 'general' }, // ✅ تم إضافة "عام" هنا
+    { label: 'عام', value: 'general' }, 
     { label: 'مندوب جملة', value: 'ws_rep' },
     { label: 'مندوب التجزئة', value: 'retail_rep' },
-    { label: 'كلاهما', value: 'both_reps' },
   ];
 
   // تهيئة وإعادة تعيين حقول النموذج والأخطاء عند فتح المودال أو تغيير العملات
@@ -149,10 +148,8 @@ export default function AddProductModal({ show, onClose, onAddProductConfirm, av
 
   const handleAddPriceField = () => {
     if (currentPricesForSelectedCurrency.length < 5) {
-      // ✅ FIXED: Ensure type_user is initialized with a valid value from typeUserOptions
       setAllProductPrices(prevPrices => ({
         ...prevPrices,
-        // ✅ تم التعديل: الافتراضي سيكون "عام" الآن لأنه الخيار الأول
         [selectedPriceCurrencyCode]: [...currentPricesForSelectedCurrency, { value: '', type_user: typeUserOptions[0]?.value || '' }] 
       }));
     } else {
@@ -193,42 +190,23 @@ export default function AddProductModal({ show, onClose, onAddProductConfirm, av
         } else if (isNaN(parseFloat(priceEntry.value))) {
           currentErrors[`priceValue_${currencyCode}_${index}`] = `قيمة السعر للعملة ${currencyCode} يجب أن تكون رقماً.`;
         }
-        // ✅ FIXED: Ensure validation correctly checks against ALL valid typeUserOptions
         if (!priceEntry.type_user || !typeUserOptions.some(opt => opt.value === priceEntry.type_user)) {
           currentErrors[`priceTypeUser_${currencyCode}_${index}`] = `نوع المستخدم مطلوب وصالح لكل سعر.`;
         }
 
-        // Handle 'both_reps'
-        if (priceEntry.type_user === 'both_reps') {
-          if (String(priceEntry.value).trim() && !isNaN(parseFloat(priceEntry.value))) {
-            finalProductPrices.push({
-              currency_code: currencyCode,
-              price: parseFloat(priceEntry.value),
-              type_user: 'wholesale' // Add for wholesale
-            });
-            finalProductPrices.push({
-              currency_code: currencyCode,
-              price: parseFloat(priceEntry.value),
-              type_user: 'retail' // Add for retail
-            });
-          }
-        } else {
-          let mappedTypeUser = priceEntry.type_user;
-          // ✅ تم تعديل: الآن 'general' سيتم إرسالها كما هي
-          if (priceEntry.type_user === 'ws_rep') {
-              mappedTypeUser = 'wholesale';
-          } else if (priceEntry.type_user === 'retail_rep') {
-              mappedTypeUser = 'retail';
-          }
-          // 'general' maps directly to 'general'
+        let mappedTypeUser = priceEntry.type_user;
+        if (priceEntry.type_user === 'ws_rep') {
+            mappedTypeUser = 'wholesale';
+        } else if (priceEntry.type_user === 'retail_rep') {
+            mappedTypeUser = 'retail';
+        }
 
-          if (String(priceEntry.value).trim() && !isNaN(parseFloat(priceEntry.value)) && priceEntry.type_user) {
-            finalProductPrices.push({ 
-              currency_code: currencyCode, 
-              price: parseFloat(priceEntry.value), 
-              type_user: mappedTypeUser 
-            }); 
-          }
+        if (String(priceEntry.value).trim() && !isNaN(parseFloat(priceEntry.value)) && priceEntry.type_user) {
+          finalProductPrices.push({ 
+            currency_code: currencyCode, 
+            price: parseFloat(priceEntry.value), 
+            type_user: mappedTypeUser 
+          }); 
         }
       });
     });
@@ -283,50 +261,27 @@ export default function AddProductModal({ show, onClose, onAddProductConfirm, av
       const errorMessage = err.message || 'حدث خطأ غير متوقع عند إضافة المنتج.';
 
       if (err.status === 422) { 
-        const backendErrorMessage = err.message || 'فشل التحقق من البيانات.';
-        if (err.errors) {
-            const validationErrors = {};
-            for (const field in err.errors) {
-                if (field === 'name' && err.errors[field][0].includes('مستخدم بالفعل')) {
-                  validationErrors.productName = 'اسم المنتج هذا مستخدم بالفعل. يرجى اختيار اسم آخر.';
-                } else if (field === 'name') {
-                  validationErrors.productName = err.errors[field][0];
-                }
-                if (field === 'unit') {
-                    validationErrors.productUnit = err.errors[field][0];
-                }
-                
-                if (field === 'category_slug') validationErrors.productCategory = err.errors[field][0];
-                if (field.startsWith('prices.')) {
-                    const parts = field.split('.'); 
-                    if (parts.length === 3) {
-                        const index = parts[1];
-                        const priceField = parts[2]; 
-                        const currencyCodeForError = selectedPriceCurrencyCode; 
-                        
-                        if (priceField === 'price') {
-                            validationErrors[`priceValue_${currencyCodeForError}_${index}`] = err.errors[field][0];
-                        } else if (priceField === 'type_user') {
-                            validationErrors[`priceTypeUser_${currencyCodeForError}_${index}`] = err.errors[field][0];
-                        } else if (priceField === 'currency_id' || priceField === 'currency_code') { 
-                            validationErrors[`priceCurrency_${currencyCodeForError}_${index}`] = err.errors[field][0];
-                        }
-                    }
-                }
-            }
-            if (Object.keys(validationErrors).length > 0) {
-                setErrors(prev => ({ ...prev, ...validationErrors }));
-                toast.error('فشل التحقق: يرجى مراجعة الحقول.');
+        const backendErrors = err.errors;
+        if (backendErrors) {
+            if (backendErrors.name && backendErrors.name[0].includes('مستخدم بالفعل')) {
+              setErrors(prev => ({ ...prev, productName: 'اسم المنتج هذا مستخدم بالفعل. يرجى اختيار اسم آخر.' }));
+            } else if (backendErrors.unit && backendErrors.unit[0].includes('مستخدم بالفعل')) { // Specific check for duplicate unit
+              setErrors(prev => ({ ...prev, productUnit: 'هذه السعة (الوحدة) مستخدمة بالفعل لمنتج آخر. يرجى اختيار سعة مختلفة.' }));
+            } else if (backendErrors.name) {
+              setErrors(prev => ({ ...prev, productName: backendErrors.name[0] }));
+            } else if (backendErrors.unit) {
+              setErrors(prev => ({ ...prev, productUnit: backendErrors.unit[0] }));
+            } else if (backendErrors.category_slug) {
+              setErrors(prev => ({ ...prev, productCategory: backendErrors.category_slug[0] }));
+            } else if (backendErrors.prices) {
+              setErrors(prev => ({ ...prev, general: 'خطأ في التحقق من الأسعار: ' + backendErrors.prices[0] }));
             } else {
-                setErrors({ general: backendErrorMessage });
-                toast.error(backendErrorMessage);
+              setErrors({ general: 'خطأ في التحقق من البيانات: ' + (err.message || 'فشل التحقق.') });
             }
         } else {
-            setErrors({ general: backendErrorMessage });
-            toast.error(backendErrorMessage);
+          setErrors({ general: 'خطأ في التحقق من البيانات: ' + (err.message || 'فشل التحقق.') });
         }
-        setIsLoading(false);
-        return; 
+        toast.error('هذا المنتج قد تمت اضافته من قبل.'); // Generic toast for 422
       } else {
         setErrors({ general: errorMessage });
         toast.error(errorMessage);
@@ -442,7 +397,7 @@ export default function AddProductModal({ show, onClose, onAddProductConfirm, av
           />
 
           {/* Added max-h-60 and overflow-y-auto to the container for price entries */}
-          <div className="max-h-60 overflow-y-auto pr-2"> 
+          <div className="max-h-35 overflow-y-auto pr-2"> 
             {selectedPriceCurrencyCode && currentPricesForSelectedCurrency.map((priceEntry, index) => (
               <div key={`${selectedPriceCurrencyCode}-${index}`} className="flex flex-col md:flex-row gap-4 mb-3 items-end">
                 <FormInputField
