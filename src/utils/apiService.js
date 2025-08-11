@@ -12,7 +12,10 @@ const handleApiError = (error) => {
   if (error.response) {
     // The server responded with an error status (e.g., 400, 401, 500)
     console.error("API Error Response:", error.response.data);
-    return new Error(error.response.data.message || 'خطأ من الخادم.');
+    // NEW: Create a custom error object that includes the status
+    const customError = new Error(error.response.data.message || 'خطأ من الخادم.');
+    customError.status = error.response.status; // Attach the HTTP status code
+    return customError;
   } else if (error.request) {
     // The request was made but no response was received (network issue)
     console.error("API Network Error:", error.request);
@@ -122,5 +125,8 @@ export const del = async (endpoint, token) => { // 'delete' is a reserved keywor
  * @returns {Promise<object>} - وعد بكائن يحتوي على { exists: true/false }
  * @throws {Error} - يرمي خطأ إذا فشل الطلب (بما في ذلك 401 Unauthorized أو 404 Not Found إذا لم يكن المسار موجودًا)
  */
-
-
+export const checkPhoneExistsApi = async (phoneNumber, token) => {
+  // افترض أن نقطة النهاية هي 'users/check-phone' وتتوقع بارامتر 'phone'
+  // تأكد من أن هذا المسار موجود في الواجهة الخلفية ومرئي للمستخدمين المصادق عليهم
+  return get('admin/users/check-phone', token, { phone: phoneNumber });
+};

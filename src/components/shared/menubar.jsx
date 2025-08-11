@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react"; // NEW: Import useState and useEffect
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { toast } from 'react-toastify'; // NEW: Import toast for notifications
@@ -33,17 +33,32 @@ import { ChevronLeftIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 export function Menubar() {
   const navigate = useNavigate();
 
-  // حالة لإدارة القوائم المنسدلة
+  // حالة لإدارة اسم المستخدم
+  const [userName, setUserName] = useState('اسم المستخدم'); // Default or loading state
+
+  // حالة لإدارة القوائم المنسدلة - لم تعد ضرورية لقائمة المنتجات المباشرة
   const [open, setOpen] = React.useState(0);
 
-  // دالة لفتح وإغلاق القوائم
+  // دالة لفتح وإغلاق القوائم - لم تعد تستخدم لقائمة المنتجات المباشرة
   const handleOpen = (value) => {
     setOpen(open === value ? 0 : value);
   };
 
-  // NEW: دالة لتسجيل الخروج
+  // useEffect لجلب اسم المستخدم عند تحميل المكون
+  useEffect(() => {
+    const storedUserName = localStorage.getItem('userName');
+    if (storedUserName) {
+      setUserName(storedUserName);
+    } else {
+      // إذا لم يتم العثور على اسم المستخدم، يمكنك تعيين قيمة افتراضية
+      setUserName('مستخدم');
+    }
+  }, []); // تشغيل مرة واحدة عند تحميل المكون
+
+  // دالة لتسجيل الخروج
   const handleLogout = () => {
     localStorage.removeItem('userToken'); // إزالة التوكن من التخزين المحلي
+    localStorage.removeItem('userName'); // NEW: إزالة اسم المستخدم عند تسجيل الخروج
     toast.info('تم تسجيل الخروج بنجاح.'); // عرض رسالة تنبيه
     navigate("/login"); // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
   };
@@ -58,7 +73,7 @@ export function Menubar() {
 
       <div className="amiriFont flex flex-col items-center justify-center mt-2 mb-2">
         <UserCircleIcon className="h-10 w-10 mb-1" />
-        <h1>اسم المستخدم</h1>
+        <h1>{userName}</h1> {/* Display dynamic user name */}
       </div>
       <hr className="w-full border-t-2 border-gray-200 my-3" />
       <List>
@@ -72,56 +87,16 @@ export function Menubar() {
           لوحة التحكم{" "}
         </ListItem>
 
-        <Accordion
-          open={open === 1}
-          icon={
-            <ChevronDownIcon
-              strokeWidth={2.5}
-              className={`mx-auto h-4 w-4 transition-transform ${
-                open === 1 ? "rotate-180" : ""
-              }`}
-            />
-          }
+        {/* UPDATED: Removed Accordion for Products, now direct navigation */}
+        <ListItem
+          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={() => navigate("/productslist")} // Direct navigation to productslist
         >
-          <AccordionHeader
-            onClick={() => handleOpen(1)}
-            className="border-b-0 p-3 hover:bg-blue-100/40 cursor-pointer transition-colors"
-          >
-            <ListItemPrefix>
-              <ShoppingBagIcon className="h-5 w-5" />
-            </ListItemPrefix>
-            <Typography
-              color="blue-gray"
-              className="amiriFont font-normal text-lg"
-            >
-              المنتجات{" "}
-            </Typography>
-          </AccordionHeader>
-          {open === 1 && (
-            <AccordionBody className="py-1">
-              <List className="p-0">
-                <ListItem className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
-                  <ListItemPrefix>
-                    <ChevronLeftIcon strokeWidth={3} className=" h-3 w-5" />
-                  </ListItemPrefix>
-                  الفئات{" "}
-                </ListItem>
-                <ListItem className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
-                  <ListItemPrefix>
-                    <ChevronLeftIcon strokeWidth={3} className="h-3 w-5" />
-                  </ListItemPrefix>
-                  المنتجات{" "}
-                </ListItem>
-                <ListItem className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
-                  <ListItemPrefix>
-                    <ChevronLeftIcon strokeWidth={3} className="h-3 w-5" />
-                  </ListItemPrefix>
-                  الأصناف{" "}
-                </ListItem>
-              </List>
-            </AccordionBody>
-          )}
-        </Accordion>
+          <ListItemPrefix>
+            <ShoppingBagIcon className="h-5 w-5" />
+          </ListItemPrefix>
+          المنتجات{" "}
+        </ListItem>
 
         <ListItem className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
           <ListItemPrefix>
@@ -215,7 +190,7 @@ export function Menubar() {
 
         <ListItem
           className="amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={handleLogout} // NEW: Call handleLogout function on click
+          onClick={handleLogout} // Call handleLogout function on click
         >
           <ListItemPrefix>
             <PowerIcon className="h-5 w-5" />

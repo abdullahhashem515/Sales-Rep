@@ -1,80 +1,177 @@
-import MainLayout from "../../components/shared/MainLayout";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/solid";
-import AddUserModal from "./addUserModal"; // تأكد من المسار الصحيح
 import React, { useState, useEffect, useMemo } from "react";
-import UpdateUserModel from "./updateUserModel"; // استيراد مكون التعديل
+import MainLayout from "../../components/shared/MainLayout";
+import AddUserModal from "./addUserModal"; // Used for both reps and admins now
+import UpdateUserModel from "./updateUserModel"; // Used for both reps and admins now
 import ConfirmDeleteModal from "../../components/shared/ConfirmDeleteModal";
-import { get, del } from '../../utils/apiService'; // NEW: Import the generic get and del functions
-import { toast } from 'react-toastify'; // Import toast for notifications
+import { get, del } from '../../utils/apiService';
+import { toast } from 'react-toastify';
+
+import PageHeader from '../../components/shared/PageHeader';
+import AddEntityButton from '../../components/shared/AddEntityButton';
+import SearchFilterBar from '../../components/shared/SearchFilterBar';
+import Table from '../../components/shared/Table'; 
+import ActionButtons from '../../components/shared/ActionButtons'; 
 
 export default function UsersList() {
-  const [users, setUsers] = useState([]); // State to store fetched users
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null); // Error state
+  // State for sales representatives (wholesale and retail)
+  const [salesReps, setSalesReps] = useState([]);
+  // State for administrators
+  const [adminsList, setAdminsList] = useState([]);
 
-  const [showModal, setShowModal] = useState(false); // لإضافة مستخدم جديد
-  const [showEditModal, setShowEditModal] = useState(false); // لتعديل مستخدم
-  const [showDeleteModal, setShowDeleteModal] = useState(false); // لحذف مستخدم
-  const [userToDelete, setUserToDelete] = useState(null); // State to store user SLUG to be deleted
-  const [userToEdit, setUserToEdit] = useState(null); // NEW: State to store user data to be edited
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [errorUsers, setErrorUsers] = useState(null);
 
-  // State for search and filter
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchBy, setSearchBy] = useState('name'); // Default search by full name (name from API)
+  // States for modals (can be shared as they operate on one user/admin at a time)
+  const [showAddRepModal, setShowAddRepModal] = useState(false);
+  const [showUpdateUserModal, setShowUpdateUserModal] = useState(false); // Unified update modal
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false); // Unified delete modal
+  const [userToDelete, setUserToDelete] = useState(null); // { slug, type }
+  const [userToEdit, setUserToEdit] = useState(null); // Full user object
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 7; // Number of users to display per page
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
 
-  // Function to fetch users (can be called on mount and after delete/add/update)
-  const fetchUsers = async () => {
-    setLoading(true); // Start loading
-    setError(null); // Reset any previous errors
+  // Search and Pagination states for Sales Reps
+  const [searchTermReps, setSearchTermReps] = useState('');
+  const [searchByReps, setSearchByReps] = useState('name');
+  const [currentPageReps, setCurrentPageReps] = useState(1);
+  const repsPerPage = 7;
+
+  // Search and Pagination states for Admins
+  const [searchTermAdmins, setSearchTermAdmins] = useState('');
+  const [searchByAdmins, setSearchByAdmins] = useState('name');
+  const [currentPageAdmins, setCurrentPageAdmins] = useState(1);
+  const adminsPerPage = 7;
+
+  // Function to fetch both sales representatives and administrators from their respective APIs
+  const fetchUsersAndAdmins = async () => {
+    setLoadingUsers(true);
+    setErrorUsers(null);
     try {
-      const token = localStorage.getItem('userToken'); // Get token from localStorage
+      const token = localStorage.getItem('userToken');
       if (!token) {
-        setError('لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.');
+        setErrorUsers('لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.');
         toast.error('لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.');
-        setLoading(false);
+        setLoadingUsers(false);
         return;
       }
 
-      const response = await get('admin/users', token); 
-      setUsers(response.users || response.data || response); 
+      // Fetch Sales Representatives
+      const repsResponse = await get('admin/users', token); 
+      setSalesReps(repsResponse.users || repsResponse.data || []); 
+
+      // Fetch Administrators
+      const adminsResponse = await get('admin/admins', token);
+      setAdminsList(adminsResponse.admins || adminsResponse.data || []);
 
     } catch (err) {
-      console.error("Failed to fetch users:", err);
-      setError(err.message || 'فشل في جلب المستخدمين.');
-      toast.error('فشل في جلب المستخدمين: ' + (err.message || 'خطأ غير معروف.'));
+      console.error("Failed to fetch users and admins:", err);
+      setErrorUsers(err.message || 'فشل في جلب المستخدمين والمدراء.');
+      toast.error('فشل في جلب البيانات: ' + (err.message || 'خطأ غير معروف.'));
     } finally {
-      setLoading(false); // End loading
+      setLoadingUsers(false);
     }
   };
 
-  // useEffect to fetch users when the component mounts
+  // Fetch all users and admins when the component mounts
   useEffect(() => {
-    fetchUsers();
-  }, []); // Empty dependency array means this runs once on mount
+    fetchUsersAndAdmins();
+  }, []);
 
-  // Handle user deletion
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return; // Ensure there's a user selected for deletion
+  // Memoized filtered lists for reps and admins directly from their states
+  
+  // --- Filtering Logic for Reps ---
+  const searchOptionsReps = [
+    { value: 'name', label: 'الاسم الكامل' },
+    { value: 'phone_number', label: 'رقم الجوال' },
+    { value: 'status', label: 'حالة الحساب' }, // ADDED: Search by status for reps
+  ];
+  const filteredReps = useMemo(() => {
+    if (!searchTermReps) return salesReps;
+    const lowerCaseSearchTerm = searchTermReps.toLowerCase();
+    return salesReps.filter(rep => {
+      if (searchByReps === 'name') return rep.name?.toLowerCase().includes(lowerCaseSearchTerm);
+      if (searchByReps === 'phone_number') return rep.phone_number?.toLowerCase().includes(lowerCaseSearchTerm);
+      if (searchByReps === 'status') { // NEW: Handle search by status for reps
+        const displayStatus = rep.status === 'active' ? 'نشط' : 'غير نشط';
+        return displayStatus.toLowerCase().includes(lowerCaseSearchTerm);
+      }
+      return false;
+    });
+  }, [salesReps, searchTermReps, searchByReps]);
 
-    setLoading(true); // Show loading during deletion
+  // --- Filtering Logic for Admins ---
+  const searchOptionsAdmins = [
+    { value: 'name', label: 'الاسم الكامل' },
+    // Removed email from search options for admins as per new requirement
+    { value: 'phone_number', label: 'رقم الجوال' }, 
+    { value: 'status', label: 'حالة الحساب' }, // ADDED: Search by status for admins
+  ];
+  const filteredAdmins = useMemo(() => {
+    if (!searchTermAdmins) return adminsList;
+    const lowerCaseSearchTerm = searchTermAdmins.toLowerCase();
+    return adminsList.filter(admin => {
+      if (searchByAdmins === 'name') return admin.name?.toLowerCase().includes(lowerCaseSearchTerm);
+      // Removed email from search logic for admins as per new requirement
+      if (searchByAdmins === 'phone_number') return admin.phone_number?.toLowerCase().includes(lowerCaseSearchTerm);
+      if (searchByAdmins === 'status') { // NEW: Handle search by status for admins
+        const displayStatus = admin.status === 'active' ? 'نشط' : 'غير نشط';
+        return displayStatus.toLowerCase().includes(lowerCaseSearchTerm);
+      }
+      return false;
+    });
+  }, [adminsList, searchTermAdmins, searchByAdmins]);
+
+  // --- Handlers for Adding Users/Admins ---
+  const handleAddRepClick = () => setShowAddRepModal(true);
+  const handleAddAdminClick = () => setShowAddAdminModal(true);
+  
+  // Callback after adding/updating user/admin
+  // This function is passed to AddUserModal and UpdateUserModel
+  const handleUserModalClose = (isSuccess) => {
+    setShowAddRepModal(false);
+    setShowAddAdminModal(false);
+    setShowUpdateUserModal(false);
+    if (isSuccess) {
+      fetchUsersAndAdmins(); // Re-fetch both lists to update display
+    }
+  };
+
+  // --- Handlers for Editing Users/Admins ---
+  const handleEditClick = (user) => {
+    setUserToEdit(user);
+    setShowUpdateUserModal(true);
+  };
+
+  // --- Handlers for Deleting Users/Admins ---
+  const handleDeleteClick = (userSlug, userType) => {
+    setUserToDelete({ slug: userSlug, type: userType });
+    setShowDeleteUserModal(true);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setLoadingUsers(true); // Show loading for both sections
     try {
       const token = localStorage.getItem('userToken');
       if (!token) {
         toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-        setLoading(false);
+        setLoadingUsers(false);
         return;
       }
 
-      // UPDATED: Pass userToDelete (which is now slug) in the URL path
-      const response = await del(`admin/delete-user/${userToDelete}`, token);
+      let deleteEndpoint = '';
+      if (userToDelete.type === 'admin') {
+        deleteEndpoint = `admin/delete-admin/${userToDelete.slug}`;
+      } else {
+        deleteEndpoint = `admin/delete-user/${userToDelete.slug}`;
+      }
 
-      if (response.status) { // Assuming 'status: true' indicates success
+      const response = await del(deleteEndpoint, token);
+
+      if (response.status) {
         toast.success('تم حذف المستخدم بنجاح!');
-        fetchUsers(); // Re-fetch users to update the list
+        fetchUsersAndAdmins(); // Re-fetch both lists to update display
       } else {
         const apiErrorMessage = response.message || 'فشل حذف المستخدم.';
         toast.error(apiErrorMessage);
@@ -83,223 +180,237 @@ export default function UsersList() {
       console.error("Error deleting user:", err);
       toast.error('فشل في حذف المستخدم: ' + (err.message || 'خطأ غير معروف.'));
     } finally {
-      setLoading(false); // Hide loading
-      setShowDeleteModal(false); // Close the confirmation modal
-      setUserToDelete(null); // Reset user to delete
+      setLoadingUsers(false);
+      setShowDeleteUserModal(false);
+      setUserToDelete(null);
     }
   };
 
-  // Function to open edit modal and pass user data
-  const handleEditClick = (user) => {
-    setUserToEdit(user); // Set the user object to be edited (contains slug)
-    setShowEditModal(true); // Open the edit modal
-  };
+  // --- Pagination Logic for Reps ---
+  useEffect(() => { setCurrentPageReps(1); }, [filteredReps]);
+  const totalPagesReps = Math.ceil(filteredReps.length / repsPerPage);
+  const indexOfLastRep = currentPageReps * repsPerPage;
+  const indexOfFirstRep = indexOfLastRep - repsPerPage;
+  const currentReps = filteredReps.slice(indexOfFirstRep, indexOfLastRep);
+  const nextPageReps = () => { if (currentPageReps < totalPagesReps) setCurrentPageReps(currentPageReps + 1); };
+  const prevPageReps = () => { if (currentPageReps > 1) setCurrentPageReps(currentPageReps - 1); };
 
-  // Memoized filtered users based on search term and searchBy
-  const filteredUsers = useMemo(() => {
-    if (!searchTerm) {
-      return users; // If no search term, return all users
-    }
+  // --- Pagination Logic for Admins ---
+  useEffect(() => { setCurrentPageAdmins(1); }, [filteredAdmins]);
+  const totalPagesAdmins = Math.ceil(filteredAdmins.length / adminsPerPage);
+  const indexOfLastAdmin = currentPageAdmins * adminsPerPage;
+  const indexOfFirstAdmin = indexOfLastAdmin - adminsPerPage;
+  const currentAdmins = filteredAdmins.slice(indexOfFirstAdmin, indexOfLastAdmin);
+  const nextPageAdmins = () => { if (currentPageAdmins < totalPagesAdmins) setCurrentPageAdmins(currentPageAdmins + 1); };
+  const prevPageAdmins = () => { if (currentPageAdmins > 1) setCurrentPageAdmins(currentPageAdmins - 1); };
 
-    return users.filter(user => {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      let valueToSearch = '';
+  // --- Table Headers ---
+  const tableHeaders = [
+    { key: 'id', label: '#' },
+    { key: 'name', label: 'الاسم الكامل' },
+    { key: 'phone_number', label: 'رقم الجوال' },
+    { key: 'email', label: 'البريد الإلكتروني' },
+    { key: 'type_user', label: 'الدور' },
+    { key: 'status', label: 'حالة الحساب' },
+    { key: 'actions', label: 'الإجراءات' },
+  ];
 
-      if (searchBy === 'name') { // Search by user's name (الاسم الكامل)
-        valueToSearch = user.name ? user.name.toLowerCase() : '';
-      } else if (searchBy === 'role') { // Search by user's role (الدور)
-        // Map API role values to their display text for searching
-        const displayRole = user.type_user === 'ws_rep' ? 'مندوب جملة' : 
-                            user.type_user === 'retail_rep' ? 'مندوب التجزئة' : 
-                            user.type_user; // Fallback if API role is not mapped
-        valueToSearch = displayRole.toLowerCase();
-      }
-      return valueToSearch.includes(lowerCaseSearchTerm);
-    });
-  }, [users, searchTerm, searchBy]);
+  // --- Render Row for Reps Table ---
+  const renderRepRow = (user) => (
+    <>
+      <td className="py-3 px-4">{user.id}</td>
+      <td className="py-3 px-4">{user.name}</td>
+      <td className="py-3 px-4">{user.phone_number}</td>
+      <td className="py-3 px-4">{user.email || 'N/A'}</td> {/* Email can be N/A for reps */}
+      <td className="py-3 px-4">
+        <span
+          className={`px-2 py-1 rounded-full text-sm ${
+            user.type_user === "ws_rep" ? "bg-blue-600 text-white" : 
+            user.type_user === "retail_rep" ? "bg-purple-600 text-white" : 
+            "bg-gray-600 text-white" 
+          }`}
+        >
+          {user.type_user === 'ws_rep' ? 'مندوب جملة' : 'مندوب التجزئة'}
+        </span>
+      </td>
+      <td className="py-3 px-4">
+        <span
+          className={`px-2 py-1 rounded-full text-sm ${
+            user.status === "active" ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          }`}
+        >
+          {user.status === "active" ? "نشط" : "غير نشط"}
+        </span>
+      </td>
+      <ActionButtons
+        onEdit={() => handleEditClick(user)}
+        onDelete={() => handleDeleteClick(user.slug, user.type_user)}
+      />
+    </>
+  );
 
-  // Reset currentPage to 1 whenever filteredUsers changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredUsers]);
-
-
-  // Calculate the total number of pages based on filtered users
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
-  // Get current users for the displayed page (from filteredUsers)
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-
-  // Function to change page
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  // Function to go to next page
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  // Function to go to previous page
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
+  // --- Render Row for Admins Table ---
+  const renderAdminRow = (adminUser) => (
+    <>
+      <td className="py-3 px-4">{adminUser.id}</td>
+      <td className="py-3 px-4">{adminUser.name}</td>
+      <td className="py-3 px-4">{adminUser.phone_number}</td>
+      <td className="py-3 px-4">{adminUser.email}</td> {/* Admins always have email */}
+      <td className="py-3 px-4">
+        <span className="px-2 py-1 rounded-full text-sm accentColor text-white">مدير</span>
+      </td>
+      <td className="py-3 px-4">
+        <span
+          className={`px-2 py-1 rounded-full text-sm ${
+            adminUser.status === "active" ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          }`}
+        >
+          {adminUser.status === "active" ? "نشط" : "غير نشط"}
+        </span>
+      </td>
+      <ActionButtons
+        onEdit={() => handleEditClick(adminUser)}
+        onDelete={() => handleDeleteClick(adminUser.slug, adminUser.type_user)}
+      />
+    </>
+  );
 
   return (
     <MainLayout>
       <div className="text-white">
+        {/* Sales Reps Section (المستخدمين - مندوبين) */}
         <div className="flex justify-between mb-4 items-center">
-          <h2 className="amiriFont text-2xl font-bold">المستخدمين</h2>
+          <PageHeader title="المستخدمين (مندوبين)" />
         </div>
-
         <div className="mb-4 flex justify-between items-center">
-          <button
-            className="amiriFont accentColor text-white py-2 px-4 rounded"
-            onClick={() => setShowModal(true)}
-          >
-            + إضافة مستخدم
-          </button>
+          <AddEntityButton label="+ إضافة مندوب" onClick={handleAddRepClick} />
+          <SearchFilterBar
+            searchTerm={searchTermReps}
+            setSearchTerm={setSearchTermReps}
+            searchBy={searchByReps}
+            setSearchBy={setSearchByReps}
+            options={searchOptionsReps}
+            placeholder="بحث عن مندوب"
+          />
+        </div>
 
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              placeholder="بحث عن مستخدم"
-              className="amiriFont ml-2 bg-gray-900 text-white border border-gray-600 py-2 px-4 w-64 rounded-r-md focus:outline-none"
-              value={searchTerm} // Bind input value
-              onChange={(e) => setSearchTerm(e.target.value)} // Update search term
-            />
-            <select 
-              className="amiriFont bg-gray-900 text-white border border-gray-600 py-2 px-3 rounded-l-md focus:outline-none"
-              value={searchBy} // Bind select value
-              onChange={(e) => setSearchBy(e.target.value)} // Update search by field
+        <Table
+          headers={tableHeaders}
+          data={currentReps}
+          loading={loadingUsers}
+          error={errorUsers}
+          totalCount={filteredReps.length}
+          renderRow={renderRepRow}
+          rowKeyField="id"
+        />
+
+        {!loadingUsers && !errorUsers && filteredReps.length > 0 && (
+          <div className="flex justify-center mt-4 items-center">
+            <button
+              className="text-white bg-gray-800 px-4 py-2 rounded-lg mx-2"
+              onClick={prevPageReps}
+              disabled={currentPageReps === 1}
             >
-              <option value="name">الاسم الكامل</option> {/* Corresponds to user.name from API */}
-              <option value="role">الدور</option> {/* Corresponds to user.type_user from API */}
-            </select>
+              &lt;&lt;
+            </button>
+            <span className="text-white bg-green-700 px-4 py-2 rounded-lg mx-1 font-bold">
+              {currentPageReps}
+            </span>
+            <button
+              className="text-white bg-gray-800 px-4 py-2 rounded-lg mx-2"
+              onClick={nextPageReps}
+              disabled={currentPageReps === totalPagesReps}
+            >
+              &gt;&gt;
+            </button>
           </div>
+        )}
+
+        {/* Divider between Reps and Admins Sections */}
+        <div className="my-[15px]"> {/* Margin of 15px as requested */}
+          <hr className="border-t-2 border-gray-700" />
         </div>
 
-        <div className="overflow-x-auto">
-          {loading && <p className="text-center text-lg">جاري تحميل المستخدمين...</p>}
-          {error && <p className="text-center text-red-500 text-lg">خطأ: {error}</p>}
-
-          {!loading && !error && filteredUsers.length === 0 && (
-            <p className="text-center text-lg">لا توجد بيانات للمستخدمين لعرضها.</p>
-          )}
-
-          {!loading && !error && filteredUsers.length > 0 && (
-            <table className="amiriFont min-w-full text-white border-collapse">
-              <thead>
-                <tr className="accentColor text-white">
-                  <th className="py-3 px-4 text-right">#</th><th className="py-3 px-4 text-right">الاسم الكامل</th><th className="py-3 px-4 text-right">رقم الجوال</th><th className="py-3 px-4 text-right">البريد الإلكتروني</th>
-                  <th className="py-3 px-4 text-right">الدور</th><th className="py-3 px-4 text-right">حالة الحساب</th><th className="py-3 px-4 text-right">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Render only currentUsers */}
-                {currentUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-700"> {/* Keep key as user.id for stability */}
-                    <td className="py-3 px-4">{user.id}</td>
-                    <td className="py-3 px-4">{user.name}</td> {/* Assuming API returns 'name' */}
-                    <td className="py-3 px-4">{user.phone_number}</td> {/* Assuming API returns 'phone_number' */}
-                    <td className="py-3 px-4">{user.email}</td> {/* Display user.email */}
-                    <td className="py-3 px-4">{user.type_user === 'ws_rep' ? 'مندوب جملة' : user.type_user === 'retail_rep' ? 'مندوب التجزئة' : user.type_user}</td> {/* Map API role to display text */}
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-sm ${
-                          user.status === "active"
-                            ? "bg-green-600 text-white"
-                            : "bg-red-600 text-white"
-                        }`}
-                      >
-                        {user.status === "active" ? "نشط" : "غير نشط"} {/* Map API status to display text */}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 flex gap-2">
-                      <button
-                        className="bg-yellow-400 hover:bg-yellow-600 p-2 rounded"
-                        onClick={() => handleEditClick(user)} // Pass the user object to handleEditClick
-                      >
-                        <PencilIcon className="w-4 h-4 text-white" />
-                      </button>
-                      <button
-                        className="bg-red-500 hover:bg-red-600 p-2 rounded"
-                        onClick={() => {
-                          setUserToDelete(user.slug); // UPDATED: Set the SLUG of the user to be deleted
-                          setShowDeleteModal(true); // Open the confirmation modal
-                        }}
-                      >
-                        <TrashIcon className="w-4 h-4 text-white" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {/* Pagination Controls */}
-          {!loading && !error && filteredUsers.length > 0 && (
-            <div className="flex justify-center mt-4">
-              <button
-                className="text-white bg-gray-800 px-3 py-1 rounded mx-1"
-                onClick={prevPage}
-                disabled={currentPage === 1} // Disable if on first page
-              >
-                &lt;&lt;
-              </button>
-              {/* Render page numbers */}
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => paginate(index + 1)}
-                  className={`text-white px-3 py-1 rounded mx-1 ${
-                    currentPage === index + 1 ? "bg-green-700" : "bg-gray-800"
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              <button
-                className="text-white bg-gray-800 px-3 py-1 rounded mx-1"
-                onClick={nextPage}
-                disabled={currentPage === totalPages} // Disable if on last page
-              >
-                &gt;&gt;
-              </button>
-            </div>
-          )}
-
-          <AddUserModal 
-            show={showModal} 
-            onClose={() => {
-              setShowModal(false);
-              fetchUsers(); // NEW: Call fetchUsers after AddUserModal closes
-            }} 
-          />
-          <UpdateUserModel
-            show={showEditModal}
-            onClose={() => {
-                setShowEditModal(false); // Close modal
-                setUserToEdit(null); // Reset user to edit
-                fetchUsers(); // Re-fetch users after update to reflect changes
-            }}
-            userToEdit={userToEdit} // Pass the user data to the UpdateUserModel
-          />
-          <ConfirmDeleteModal
-            show={showDeleteModal}
-            onClose={() => {
-                setShowDeleteModal(false); // Close modal
-                setUserToDelete(null); // Reset user to delete
-            }}
-            onConfirm={handleDeleteUser} // Pass the delete function to the modal
+        {/* Admins Section (المدراء) */}
+        <div className="flex justify-between mb-4 items-center">
+          <PageHeader title="المدراء" />
+        </div>
+        <div className="mb-4 flex justify-between items-center">
+          <AddEntityButton label="+ إضافة مدير" onClick={handleAddAdminClick} />
+          <SearchFilterBar
+            searchTerm={searchTermAdmins}
+            setSearchTerm={setSearchTermAdmins}
+            searchBy={searchByAdmins}
+            setSearchBy={setSearchByAdmins}
+            options={searchOptionsAdmins}
+            placeholder="بحث عن مدير"
           />
         </div>
+
+        <Table
+          headers={tableHeaders}
+          data={currentAdmins}
+          loading={loadingUsers}
+          error={errorUsers}
+          totalCount={filteredAdmins.length}
+          renderRow={renderAdminRow}
+          rowKeyField="id"
+        />
+
+        {!loadingUsers && !errorUsers && filteredAdmins.length > 0 && (
+          <div className="flex justify-center mt-4 items-center">
+            <button
+              className="text-white bg-gray-800 px-4 py-2 rounded-lg mx-2"
+              onClick={prevPageAdmins}
+              disabled={currentPageAdmins === 1}
+            >
+              &lt;&lt;
+            </button>
+            <span className="text-white bg-green-700 px-4 py-2 rounded-lg mx-1 font-bold">
+              {currentPageAdmins}
+            </span>
+            <button
+              className="text-white bg-gray-800 px-4 py-2 rounded-lg mx-2"
+              onClick={nextPageAdmins}
+              disabled={currentPageAdmins === totalPagesAdmins}
+            >
+              &gt;&gt;
+            </button>
+          </div>
+        )}
+
       </div>
+
+      {/* Add Rep Modal */}
+      <AddUserModal 
+        show={showAddRepModal} 
+        onClose={handleUserModalClose} 
+        defaultRole="مندوب جملة" // Set default role for reps
+      />
+      
+      {/* Add Admin Modal */}
+      <AddUserModal 
+        show={showAddAdminModal} 
+        onClose={handleUserModalClose} 
+        defaultRole="مدير" // Set default role for admins
+      />
+
+      {/* Update User/Admin Modal (Shared) */}
+      <UpdateUserModel
+        show={showUpdateUserModal}
+        onClose={handleUserModalClose}
+        userToEdit={userToEdit}
+      />
+
+      {/* Confirm Delete Modal (Shared) */}
+      <ConfirmDeleteModal
+        show={showDeleteUserModal}
+        onClose={() => {
+            setShowDeleteUserModal(false);
+            setUserToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteUser}
+      />
     </MainLayout>
   );
 }

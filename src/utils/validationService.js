@@ -1,11 +1,13 @@
-// src/services/validationService.js
+// src/utils/validationService.js
 
 /**
  * دالة شاملة للتحقق من صحة نموذج إضافة المستخدم.
- * @param {object} formData - كائن يحتوي على جميع بيانات النموذج.
+ * @param {object} formData - كائن يحتوي على جميع بيانات النموذج (fullName, phoneNumber, email, role, password, confirmPassword, accountStatus).
+ * @param {boolean} [isUpdate=false] - علامة تشير إذا كانت العملية تحديث (true) أو إضافة (false).
+ * @param {string} [originalEmail=''] - البريد الإلكتروني الأصلي للمستخدم إذا كانت العملية تحديث.
  * @returns {object} - كائن يحتوي على رسائل الخطأ، أو يكون فارغًا إذا لم توجد أخطاء.
  */
-export const validateAddUserForm = (formData) => {
+export const validateAddUserForm = (formData, isUpdate = false, originalEmail = '') => {
   const errors = {};
 
   // Validation: Full Name not empty
@@ -22,9 +24,13 @@ export const validateAddUserForm = (formData) => {
 
   // Validation: Email format - ONLY REQUIRED IF ROLE IS 'مدير'
   if (formData.role === 'مدير') {
-    // NEW: Add a defensive check to ensure formData.email is a string before trimming
-    // If it's not a string or if it's an empty string after trimming, mark as error
-    if (typeof formData.email !== 'string' || !formData.email.trim()) {
+    // NEW LOGIC FOR UPDATE SCENARIO
+    if (isUpdate && (formData.email === originalEmail) && !originalEmail.trim()) {
+      // If it's an update, and the email hasn't changed from its original (empty) state,
+      // and the original email was empty, then don't require it.
+      // This allows updating other fields for an admin with a previously empty email.
+    } else if (typeof formData.email !== 'string' || !formData.email.trim()) {
+      // Otherwise, if email is required for the role and it's empty/not a string, show error
       errors.email = 'البريد الإلكتروني مطلوب لدور المدير.';
     } else if (!/\S+@\S+\.\S/.test(formData.email)) {
       errors.email = 'صيغة البريد الإلكتروني غير صحيحة.';
@@ -37,24 +43,23 @@ export const validateAddUserForm = (formData) => {
   }
 
   // Validation: Password not empty and minimum length
-  // Note: Passwords are not part of UpdateUserModel's form by default,
-  // so these errors might only be relevant for AddUserModal.
-  if (!formData.password?.trim()) { // Use optional chaining for safety if password might be undefined
-    // Check if password field exists in formData (only for AddUserModal usually)
-    if (formData.password !== undefined) { // Only show error if password field was expected
-        errors.password = 'كلمة المرور مطلوبة.';
+  // These fields are typically not present in the UpdateUserModel's formData unless explicitly added.
+  // We use optional chaining and check if the field was even provided.
+  if (formData.password !== undefined) { // Only validate if password field exists in formData
+    if (!formData.password?.trim()) {
+      errors.password = 'كلمة المرور مطلوبة.';
+    } else if (formData.password.length < 8) {
+      errors.password = 'كلمة المرور يجب أن لا تقل عن 8 أحرف.';
     }
-  } else if (formData.password?.length < 8) {
-    errors.password = 'كلمة المرور يجب أن لا تقل عن 8 أحرف.';
   }
 
   // Validation: Confirm Password not empty and matches password
-  if (!formData.confirmPassword?.trim()) { // Use optional chaining for safety
-    if (formData.confirmPassword !== undefined) { // Only show error if confirmPassword was expected
-        errors.confirmPassword = 'تأكيد كلمة المرور مطلوب.';
+  if (formData.confirmPassword !== undefined) { // Only validate if confirmPassword field exists in formData
+    if (!formData.confirmPassword?.trim()) {
+      errors.confirmPassword = 'تأكيد كلمة المرور مطلوب.';
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'كلمة المرور وتأكيدها غير متطابقتين.';
     }
-  } else if (formData.password !== formData.confirmPassword) {
-    errors.confirmPassword = 'كلمة المرور وتأكيدها غير متطابقتين.';
   }
 
   return errors;

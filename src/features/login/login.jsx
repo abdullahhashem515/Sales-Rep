@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Import axios
 import logo from '../../assets/logo.png'; // Assuming this path is correct
 import { ToastContainer, toast } from 'react-toastify'; // NEW: Import ToastContainer and toast
-import 'react-toastify/dist/ReactToastify.css'; // NEW: Import toastify CSS (ensure this is also imported globally in your app)
+import 'react-toastify/dist/ReactToastify.css'; // NEW: Import toastify CSS (ensure this is also imported globally in your App.js or main.jsx
 
 
 export default function Login() {
@@ -67,12 +67,20 @@ export default function Login() {
       // It's crucial to save this token for future authenticated requests
       if (response.data && response.data.token) {
         localStorage.setItem('userToken', response.data.token); // Save the token to localStorage
+        // NEW: Assuming the API response includes a 'user' object with a 'name' property
+        if (response.data.user && response.data.user.name) {
+          localStorage.setItem('userName', response.data.user.name); // Store user's name
+        } else {
+          console.warn("Login successful, but user name not found in response.");
+          localStorage.setItem('userName', 'مستخدم'); // Fallback name
+        }
+
         console.log("Token saved:", response.data.token);
         toast.success('تم تسجيل الدخول بنجاح!'); // Show success toast
         navigate("/dashboard"); // Navigate to dashboard on success ONLY if token is received
       } else {
         // NEW: If login is successful but no token, treat it as a login failure
-        const errorMessage = 'لا يوجد الحساب في النظام';
+        const errorMessage = 'فشل تسجيل الدخول: لم يتم استلام رمز المصادقة من الخادم.';
         setGeneralError(errorMessage);
         toast.error(errorMessage); // Show error toast
         console.error("Login successful, but no token received from backend. Preventing navigation."); // Log error
@@ -190,7 +198,7 @@ export default function Login() {
                   className="SeconsryColor amiriFont flex w-full h-[45px] items-center justify-center rounded-lg shadow-md bg-indigo-500 px-3 py-1.5 mb-6 text-base font-semibold text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                   disabled={isLoading} // Disable button while loading
                 >
-                  {isLoading ? 'جاري الدخول...' : 'تسجيل'}
+                  {isLoading ? 'جاري تسجيل الدخول...' : 'تسجيل'}
                 </button>
               </div>
             </form>

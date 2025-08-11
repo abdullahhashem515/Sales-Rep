@@ -15,7 +15,7 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
   const [role, setRole] = useState('مدير'); // Default role
   const [accountStatus, setAccountStatus] = useState('نشط'); // Default status
 
-  // NEW: State to store original user data for comparison
+  // State to store original user data for comparison
   const [originalUserData, setOriginalUserData] = useState(null);
 
   // State for error messages - Unified into one object
@@ -34,12 +34,12 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
       setPhoneNumber(userToEdit.phone_number || ''); // Assuming 'phone_number' from API
       setEmail(userToEdit.email || ''); // Assuming 'email' from API
 
-      // Map API role to display text
+      // Map API role to display text - Ensure consistency with dropdown options
       let displayRole = 'مدير'; // Default
       if (userToEdit.type_user === 'ws_rep') {
         displayRole = 'مندوب جملة';
       } else if (userToEdit.type_user === 'retail_rep') {
-        displayRole = 'مندوب التجزئة';
+        displayRole = 'مندوب التجزئة'; 
       } else if (userToEdit.type_user === 'admin') { // Assuming 'admin' for manager role
         displayRole = 'مدير';
       }
@@ -49,7 +49,7 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
       const displayStatus = userToEdit.status === 'active' ? 'نشط' : 'غير نشط';
       setAccountStatus(displayStatus);
 
-      // NEW: Store a copy of the original user data for comparison
+      // Store a copy of the original user data for comparison
       setOriginalUserData({
         name: userToEdit.name || '',
         phone_number: userToEdit.phone_number || '',
@@ -75,11 +75,11 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
   }, [show, userToEdit]);
 
   // دالة إغلاق مع أنميشن
-  const handleClose = () => {
+  const handleClose = (isSuccess = false) => { // Added isSuccess parameter
     setIsVisible(false);
     // انتظر 100ms قبل إغلاق المودال نهائيًا
     setTimeout(() => {
-      onClose();
+      onClose(isSuccess); // Pass isSuccess to the onClose callback
     }, 100);
   };
 
@@ -97,8 +97,8 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
       accountStatus,
     };
 
-    // Validate form using the external validation service
-    const validationErrors = validateAddUserForm(formData); // Using same validation, adjust if needed for update
+    // Pass isUpdate=true and originalEmail to validation service
+    const validationErrors = validateAddUserForm(formData, true, originalUserData?.email || ''); 
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -120,18 +120,22 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
 
       // Map front-end role to backend's type_user for the API call
       let typeUserValue = '';
+      let endpoint = ''; // NEW: Define endpoint variable for update
       if (formData.role === 'مندوب جملة') {
           typeUserValue = 'ws_rep';
-      } else if (formData.role === 'مندوب التجزئة') {
+          endpoint = `admin/update-user/${slug}`; // Endpoint for sales reps
+      } else if (formData.role === 'مندوب التجزئة') { 
           typeUserValue = 'retail_rep';
-      } else {
-          typeUserValue = 'admin'; // Assuming 'مدير' maps to 'admin' in backend
+          endpoint = `admin/update-user/${slug}`; // Endpoint for sales reps
+      } else { // Assuming 'مدير' role
+          typeUserValue = 'admin';
+          endpoint = `admin/update-admin/${slug}`; // NEW: Endpoint for admin update
       }
 
       // Map front-end status to backend's status for the API call
       const statusValue = formData.accountStatus === 'نشط' ? 'active' : 'inactive';
 
-      // NEW: Construct the data payload with only changed fields
+      // Construct the data payload with only changed fields
       const apiPayload = {};
 
       if (fullName !== originalUserData.name) {
@@ -140,13 +144,29 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
       if (phoneNumber !== originalUserData.phone_number) {
         apiPayload.phone = phoneNumber;
       }
-      // Only include email if role is 'مدير' AND it has changed
-      if (formData.role === 'مدير' && email !== originalUserData.email) {
-        apiPayload.email = email;
+
+      // Only include email if the role is 'مدير' AND it has actually changed from its original value.
+      // Or if it was originally empty but now has a value.
+      // Or if it had a value and is now empty (which should be allowed by backend if it accepts empty emails for admin).
+      if (
+          (formData.role === 'مدير' && email !== originalUserData.email) || // Email changed for Admin
+          (formData.role !== 'مدير' && email.trim() !== originalUserData.email) // Email changed for Non-Admin
+      ) {
+          apiPayload.email = email;
       }
-      if (typeUserValue !== originalUserData.type_user) { // Compare mapped role
+      
+      // If the user's role changed TO 'مدير' AND the email is empty, we must send email
+      if (formData.role === 'مدير' && originalUserData.type_user !== 'admin' && !email.trim()) {
+        apiPayload.email = email; // Send empty email for new admin if not changed
+      }
+
+      // Only update role if it's not an admin being edited or if role itself changes
+      // If current user is admin, we don't allow changing their role.
+      // If the role changed AND it's not an admin (meaning it's a rep converting to another rep type)
+      if (userToEdit.type_user !== 'admin' && typeUserValue !== originalUserData.type_user) { 
         apiPayload.type_user = typeUserValue;
       }
+      
       if (statusValue !== originalUserData.status) { // Compare mapped status
         apiPayload.status = statusValue;
       }
@@ -154,32 +174,42 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
       // If no fields have changed, don't make an API call
       if (Object.keys(apiPayload).length === 0) {
         toast.info('لم يتم إجراء أي تغييرات للحفظ.');
-        setIsLoading(false);
-        handleClose();
+        handleClose(true); // Treat as success if no changes
         return;
       }
 
       console.log("API Payload being sent for update (only changed fields):", apiPayload);
-      console.log("Updating user with SLUG:", slug); // Log SLUG
+      console.log("API Endpoint for update:", endpoint); // Log the chosen endpoint
 
       // Make API call using the generic 'put' function with SLUG in URL path
-      const response = await put(`admin/update-user/${slug}`, apiPayload, token); 
+      const response = await put(endpoint, apiPayload, token); // Use the dynamic endpoint
 
       if (response.status) { // Assuming 'status: true' indicates success
         toast.success('تم تحديث المستخدم بنجاح!');
-        handleClose(); // Close modal on successful submission
+        handleClose(true); // Close modal on successful submission and indicate success
       } else {
         const apiErrorMessage = response.message || 'فشل تحديث المستخدم.';
         setGeneralError(apiErrorMessage);
         toast.error(apiErrorMessage);
+        handleClose(false); // Close modal and indicate failure
       }
     } catch (error) {
       console.error("Error updating user:", error);
       const errorMessage = error.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
       setGeneralError(errorMessage);
       toast.error(errorMessage);
+      handleClose(false); // Close modal and indicate failure
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Determine role options based on the user being edited
+  const getRoleOptions = () => {
+    if (userToEdit && userToEdit.type_user === 'admin') {
+      return ['مدير'];
+    } else {
+      return ['مندوب جملة', 'مندوب التجزئة'];
     }
   };
 
@@ -212,8 +242,9 @@ export default function UpdateUserModel({ show, onClose, userToEdit }) {
           type: "select",
           value: role,
           onChange: (e) => setRole(e.target.value),
-          options: ['مدير', 'مندوب جملة', 'مندوب التجزئة'],
+          options: getRoleOptions(), // Dynamically set options
           error: errors.role,
+          disabled: userToEdit && userToEdit.type_user === 'admin' // Disable if the user being edited is an admin
         },
         // Conditionally render Email field if role is 'مدير'
         ...(role === 'مدير' ? [{
