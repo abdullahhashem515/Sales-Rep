@@ -7,7 +7,12 @@ import UsersList from '../features/users/userslist';
 import Returnlist from '../features/returns/returnslist';
 import ProtectedRoute from './ProtectedRoute'; // استيراد مكون الحماية
 import RootRedirect from '../app/RootRedirect'; // NEW: استيراد RootRedirect من ملفه الجديد
-
+import Orderslist from '../features/orders/orderslist';
+import Invoiceslist from '../features/invoices/invoiceslist';
+import Customerslist from '../features/customers/customerslist';
+import Inventorieslist from '../features/inventories/inventorieslist';
+import Salesrep from '../features/salesrep/salesrep';
+import Visitslist from '../features/visits/visitslist';
 const routes = [
   {
     path: '/',
@@ -49,6 +54,55 @@ const routes = [
         element: (
           <ProtectedRoute>
             <ProductsList />
+          </ProtectedRoute>
+        ) 
+      },
+        { 
+        path: 'orderslist', 
+        element: (
+          <ProtectedRoute>
+            <Orderslist />
+          </ProtectedRoute>
+        ) 
+      },
+       { 
+        path: 'invoiceslist', 
+        element: (
+          <ProtectedRoute>
+            <Invoiceslist />
+          </ProtectedRoute>
+        ) 
+      },
+
+      { 
+        path: 'customerslist', 
+        element: (
+          <ProtectedRoute>
+            <Customerslist />
+          </ProtectedRoute>
+        ) 
+      },
+      { 
+        path: 'inventorieslist', 
+        element: (
+          <ProtectedRoute>
+            <Inventorieslist />
+          </ProtectedRoute>
+        ) 
+      },
+       { 
+        path: 'salesrep', 
+        element: (
+          <ProtectedRoute>
+            <Salesrep />
+          </ProtectedRoute>
+        ) 
+      },
+        { 
+        path: 'visitslist', 
+        element: (
+          <ProtectedRoute>
+            <Visitslist />
           </ProtectedRoute>
         ) 
       },

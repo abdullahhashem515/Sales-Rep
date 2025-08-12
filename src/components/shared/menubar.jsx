@@ -36,13 +36,13 @@ export function Menubar() {
   // حالة لإدارة اسم المستخدم
   const [userName, setUserName] = useState('اسم المستخدم'); // Default or loading state
 
-  // حالة لإدارة القوائم المنسدلة - لم تعد ضرورية لقائمة المنتجات المباشرة
-  const [open, setOpen] = React.useState(0);
+  // // حالة لإدارة القوائم المنسدلة - لم تعد ضرورية لقائمة المنتجات المباشرة
+  // const [open, setOpen] = React.useState(0);
 
-  // دالة لفتح وإغلاق القوائم - لم تعد تستخدم لقائمة المنتجات المباشرة
-  const handleOpen = (value) => {
-    setOpen(open === value ? 0 : value);
-  };
+  // // دالة لفتح وإغلاق القوائم - لم تعد تستخدم لقائمة المنتجات المباشرة
+  // const handleOpen = (value) => {
+  //   setOpen(open === value ? 0 : value);
+  // };
 
   // useEffect لجلب اسم المستخدم عند تحميل المكون
   useEffect(() => {
@@ -78,7 +78,7 @@ export function Menubar() {
       <hr className="w-full border-t-2 border-gray-200 my-3" />
       <List>
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
           onClick={() => navigate("/dashboard")}
         >
           <ListItemPrefix>
@@ -89,7 +89,7 @@ export function Menubar() {
 
         {/* UPDATED: Removed Accordion for Products, now direct navigation */}
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
           onClick={() => navigate("/productslist")} // Direct navigation to productslist
         >
           <ListItemPrefix>
@@ -98,7 +98,7 @@ export function Menubar() {
           المنتجات{" "}
         </ListItem>
 
-        <ListItem className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
+        <ListItem className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors" onClick={() => navigate("/orderslist")}>
           <ListItemPrefix>
             <InboxIcon className="h-5 w-5 text-xs" />
           </ListItemPrefix>
@@ -114,7 +114,7 @@ export function Menubar() {
           </ListItemSuffix>
         </ListItem>
 
-        <ListItem className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors">
+        <ListItem className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors" onClick={() => navigate("/returnslist")}>
           <ListItemPrefix>
             <ArrowUturnLeftIcon className="h-5 w-5 text-xs" />
           </ListItemPrefix>
@@ -131,8 +131,8 @@ export function Menubar() {
         </ListItem>
 
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={() => navigate("/invoices")}
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={() => navigate("/invoiceslist")}
         >
           <ListItemPrefix>
             <DocumentTextIcon className="h-5 w-5" />
@@ -141,8 +141,8 @@ export function Menubar() {
         </ListItem>
 
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={() => navigate("/customers")}
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors pt-3 pb-3"
+          onClick={() => navigate("/customerslist")}
         >
           <ListItemPrefix>
             <UserGroupIcon className="h-5 w-5" />
@@ -151,16 +151,16 @@ export function Menubar() {
         </ListItem>
 
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={() => navigate("/representatives")}
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={() => navigate("/inventorieslist")}
         >
           <ListItemPrefix>
             <TruckIcon className="h-5 w-5" />
           </ListItemPrefix>
           المخزون         </ListItem>
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={() => navigate("/representatives")}
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={() => navigate("/salesrep")}
         >
           <ListItemPrefix>
             <BriefcaseIcon className="h-5 w-5" />
@@ -169,8 +169,8 @@ export function Menubar() {
         </ListItem>
 
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-          onClick={() => navigate("/visits")}
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          onClick={() => navigate("/visitslist")}
         >
           <ListItemPrefix>
             <MapPinIcon className="h-5 w-5" />
@@ -179,7 +179,7 @@ export function Menubar() {
         </ListItem>
 
         <ListItem
-          className="text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+          className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
           onClick={() => navigate("/userslist")}
         >
           <ListItemPrefix>

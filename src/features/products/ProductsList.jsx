@@ -523,7 +523,7 @@ export default function ProductsList() {
 
         <div className="mt-8 mb-4">
           <h3 className="amiriFont text-xl font-bold mb-4">قائمة العملات</h3>
-          <div className="h-[210px] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2">
+          <div className="h-[150px] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2">
             {loadingCurrencies ? (
               <p className="text-center text-lg">جاري تحميل العملات...</p>
             ) : errorCurrencies ? (
