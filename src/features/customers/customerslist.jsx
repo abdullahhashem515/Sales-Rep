@@ -5,9 +5,8 @@ import AddEntityButton from "../../components/shared/AddEntityButton";
 import SearchFilterBar from "../../components/shared/SearchFilterBar";
 import ConfirmDeleteModal from "../../components/shared/ConfirmDeleteModal";
 import CustomerCard from "./CustomerCard";
-// import AddCustomerModal from "./AddCustomerModal"; // To be created later
-// import UpdateCustomerModal from "./UpdateCustomerModal"; // To be created later
 import ViewCustomerModal from "./ViewCustomerModal";
+import AddUpdateCustomerModal from "./AddUpdateCustomerModal"; // NEW: Import the unified modal
 
 
 import { get, del } from '../../utils/apiService';
@@ -25,15 +24,14 @@ export default function Customerslist() {
   const customersPerPage = 6; // Display 6 cards per page
 
   // Modals visibility states
-  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
-  const [showUpdateCustomerModal, setShowUpdateCustomerModal] = useState(false);
+  const [showAddUpdateCustomerModal, setShowAddUpdateCustomerModal] = useState(false); // Unified modal state
   const [showDeleteCustomerModal, setShowDeleteCustomerModal] = useState(false);
-  const [showViewCustomerModal, setShowViewCustomerModal] = useState(false); // NEW: State for View Customer Modal
+  const [showViewCustomerModal, setShowViewCustomerModal] = useState(false); 
 
   // States to hold the customer object for editing, deleting or viewing
-  const [customerToEdit, setCustomerToEdit] = useState(null);
-  const [customerToDelete, setCustomerToDelete] = useState(null); // Full customer object for deletion message
-  const [customerToView, setCustomerToView] = useState(null); // NEW: State to hold customer for viewing
+  const [customerToEditOrAdd, setCustomerToEditOrAdd] = useState(null); // Holds customer for edit, or null for add
+  const [customerToDelete, setCustomerToDelete] = useState(null); 
+  const [customerToView, setCustomerToView] = useState(null); 
 
   // Function to fetch customers from the API
   const fetchCustomers = async () => {
@@ -112,16 +110,19 @@ export default function Customerslist() {
   };
 
   // Handlers for Modals
-  const handleAddCustomerClick = () => setShowAddCustomerModal(true);
+  const handleAddCustomerClick = () => {
+    setCustomerToEditOrAdd(null); // Set to null for add mode
+    setShowAddUpdateCustomerModal(true);
+  };
 
-  const handleViewCustomerClick = (customer) => { // NEW: Handle View action
+  const handleViewCustomerClick = (customer) => { 
     setCustomerToView(customer);
     setShowViewCustomerModal(true);
   };
 
   const handleEditCustomerClick = (customer) => {
-    setCustomerToEdit(customer);
-    setShowUpdateCustomerModal(true);
+    setCustomerToEditOrAdd(customer); // Set customer for edit mode
+    setShowAddUpdateCustomerModal(true);
   };
 
   const handleDeleteCustomerClick = (customer) => {
@@ -130,15 +131,17 @@ export default function Customerslist() {
   };
 
   const handleCustomerModalClose = (isSuccess = false) => {
-    setShowAddCustomerModal(false);
-    setShowUpdateCustomerModal(false);
+    setShowAddUpdateCustomerModal(false); // Close unified modal
     setShowDeleteCustomerModal(false);
-    setShowViewCustomerModal(false); // NEW: Close View modal
-    setCustomerToEdit(null);
+    setShowViewCustomerModal(false); 
+    setCustomerToEditOrAdd(null); // Clear customer data
     setCustomerToDelete(null);
-    setCustomerToView(null); // NEW: Clear customer to view
+    setCustomerToView(null); 
     if (isSuccess) {
-      fetchCustomers(); // Re-fetch customers if an operation was successful
+      // ✅ ملاحظة: استدعي fetchCustomers() مع تأخير بسيط لضمان التزامن الكامل
+      // بعد التحديث الفوري للحالة المحلية في handleConfirmDeleteCustomer
+      // هذا الاستدعاء مهم لمزامنة البيانات بعد أي عملية (إضافة/تعديل/حذف)
+      setTimeout(() => fetchCustomers(), 100); 
     }
   };
 
@@ -146,7 +149,7 @@ export default function Customerslist() {
   const handleConfirmDeleteCustomer = async () => {
     if (!customerToDelete) return;
 
-    setLoadingCustomers(true);
+    setLoadingCustomers(true); // Show loading
     try {
       const token = localStorage.getItem('userToken');
       if (!token) {
@@ -155,12 +158,18 @@ export default function Customerslist() {
         return;
       }
       
-      // Assuming customer.id is the unique identifier for deletion
-      const response = await del(`admin/customers/${customerToDelete.id}`, token); 
+      // ✅ استخدام customerToDelete.slug للحذف من الـ API
+      const response = await del(`admin/customers/${customerToDelete.slug}`, token); 
 
       if (response.status) {
         toast.success('تم حذف العميل بنجاح!');
-        fetchCustomers(); // Re-fetch customers
+        // ✅ تم التعديل: تحديث الحالة المحلية على الفور لإزالة العميل
+        // استخدم `customerToDelete.id` لضمان تطابق المفتاح (`key`) المستخدم في `CustomerCard`.
+        // هذا يضمن أن React يمكنها إزالة العنصر من العرض مباشرة.
+        setCustomers(prevCustomers => prevCustomers.filter(cust => cust.id !== customerToDelete.id));
+        
+        // لا داعي لاستدعاء `fetchCustomers()` هنا مباشرة بعد التحديث المحلي.
+        // وسيتم استدعاؤها عبر `handleCustomerModalClose` بعد تأخير قصير لضمان المزامنة الكاملة.
       } else {
         const apiErrorMessage = response.message || 'فشل حذف العميل.';
         toast.error(apiErrorMessage);
@@ -172,6 +181,9 @@ export default function Customerslist() {
       setLoadingCustomers(false);
       setShowDeleteCustomerModal(false); // Close delete confirmation modal
       setCustomerToDelete(null); // Clear customer to delete
+      // لا يوجد استدعاء صريح لـ `fetchCustomers()` هنا؛ `handleCustomerModalClose` ستقوم بذلك بعد تأخير.
+      // يجب أن يتم استدعاء handleCustomerModalClose(true) هنا لإعادة جلب البيانات بعد النجاح أو الفشل!
+      handleCustomerModalClose(true); // Always trigger close to allow re-fetch
     }
   };
 
@@ -207,7 +219,7 @@ export default function Customerslist() {
                 <CustomerCard 
                   key={customer.id} 
                   customer={customer} 
-                  onView={handleViewCustomerClick} // NEW: Pass View handler
+                  onView={handleViewCustomerClick} 
                   onEdit={handleEditCustomerClick} 
                   onDelete={handleDeleteCustomerClick} 
                 />
@@ -240,16 +252,15 @@ export default function Customerslist() {
         )}
       </div>
 
-      {/* Modals for Add, Update, Delete Customer */}
-      {/* <AddCustomerModal
-        show={showAddCustomerModal}
-        onClose={handleCustomerModalClose}
-      />
-      <UpdateCustomerModal
-        show={showUpdateCustomerModal}
-        onClose={handleCustomerModalClose}
-        customerToEdit={customerToEdit}
-      /> */}
+      {/* Unified Add/Update Customer Modal */}
+      {showAddUpdateCustomerModal && (
+        <AddUpdateCustomerModal
+          show={showAddUpdateCustomerModal}
+          onClose={handleCustomerModalClose}
+          customerToEdit={customerToEditOrAdd} // Pass null for add, or customer object for edit
+        />
+      )}
+      
       <ConfirmDeleteModal
         show={showDeleteCustomerModal}
         onClose={() => handleCustomerModalClose(false)}
@@ -258,7 +269,7 @@ export default function Customerslist() {
         message={`هل أنت متأكد أنك تريد حذف العميل "${customerToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
       />
 
-      {/* NEW: View Customer Modal */}
+      {/* View Customer Modal */}
       {showViewCustomerModal && (
         <ViewCustomerModal
           show={showViewCustomerModal}

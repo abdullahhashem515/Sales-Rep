@@ -57,11 +57,10 @@ export default function AddUserModal({ show, onClose, defaultRole = 'مندوب 
       setGeneralError(''); // Reset general API error
 
       // Collect form data to pass to validation service
-      // Note: email will be empty if role is not 'مدير' due2 to conditional rendering
       const formData = {
           fullName,
           phoneNumber,
-          email, // Email might be empty if not 'مدير'
+          email, // Email is now always present
           role,
           password,
           confirmPassword,
@@ -71,7 +70,7 @@ export default function AddUserModal({ show, onClose, defaultRole = 'مندوب 
       console.log("Form Data:", formData);
 
       // Validate form using the external validation service
-      // The validation service will only validate email if role is 'مدير'
+      // The validation service will only validate email if role is 'مدير' (current logic)
       const validationErrors = validateAddUserForm(formData);
       setErrors(validationErrors);
       console.log("Validation Errors Object:", validationErrors);
@@ -112,7 +111,7 @@ export default function AddUserModal({ show, onClose, defaultRole = 'مندوب 
           // Construct the data payload for the backend API based on backend expectations
           const apiPayload = {
               name: formData.fullName,
-              email: formData.email, 
+              email: formData.email, // Email is now always sent
               phone: formData.phoneNumber,
               password: formData.password,
               confirm_password: formData.confirmPassword,
@@ -182,25 +181,24 @@ export default function AddUserModal({ show, onClose, defaultRole = 'مندوب 
           label: "الدور",
           type: "select",
           value: role,
-          // FIXED: Wrap multiple statements in curly braces {}
           onChange: (e) => { 
-            setEmail(''); // Clear email if role changes from مدير
+            setEmail(''); // Clear email if role changes (optional, but good practice)
             setRole(e.target.value);
           }, 
-          options: getRoleOptions(), // FIXED: Dynamically set options based on defaultRole
+          options: getRoleOptions(), // Dynamically set options based on defaultRole
           error: errors.role,
           disabled: defaultRole === 'مدير' // Disable if defaultRole is 'مدير'
         },
-        // Conditionally render Email field if role is 'مدير'
-        ...(role === 'مدير' ? [{
+        // Email field is now always rendered
+        {
           label: "البريد الإلكتروني",
           type: "email",
           placeholder: "البريد الإلكتروني",
           value: email,
           onChange: (e) => setEmail(e.target.value),
           error: errors.email,
-        }] : []),
-      ].filter(Boolean),
+        },
+      ].filter(Boolean), // .filter(Boolean) is not strictly necessary here anymore but harmless
     },
     {
       fields: [
