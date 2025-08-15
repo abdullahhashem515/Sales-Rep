@@ -8,7 +8,7 @@ import AddProductToOrderModal from './AddProductToOrderModal';
 import OrderSummaryModal from './OrderSummaryModal';
 import EditProductInOrderModal from './EditProductInOrderModal';
 import { toast } from 'react-toastify';
-import { post } from '../../utils/apiService';
+import { post, get } from '../../utils/apiService';
 
 /**
  * مكون مودال لإضافة طلب جديد.
@@ -20,149 +20,195 @@ import { post } from '../../utils/apiService';
 export default function AddOrderModal({ show, onClose }) {
   const [isVisible, setIsVisible] = useState(false);
   const [salespersonId, setSalespersonId] = useState('');
-  // NEW: State for selected salesperson's type (e.g., 'ws_rep', 'retail_rep')
+  // حالة لنوع مندوب المبيعات المحدد (مثل 'ws_rep', 'retail_rep')
   const [selectedSalespersonType, setSelectedSalespersonType] = useState(null);
-  const [customerId, setCustomerId] = useState(''); // State for selected customer ID
-  const [orderType, setOrderType] = useState('cash'); // Default to cash
+  const [customerId, setCustomerId] = useState(''); // حالة لمعرف العميل المحدد
+  const [orderType, setOrderType] = useState('cash'); // الافتراضي نقدي
   const [currencyId, setCurrencyId] = useState('');
-  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(''); // Holds the code like 'YER'
+  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(''); // يحمل رمز العملة مثل 'YER'
   const [productsInOrder, setProductsInOrder] = useState([]);
+  const [note, setNote] = useState(''); // حالة جديدة لملاحظة الطلب
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]); // حالة جديدة لتاريخ الطلب، الافتراضي هو اليوم
+
+  // حالات للبيانات الفعلية التي تم جلبها من API
+  const [salespersons, setSalespersons] = useState([]); // تم التصحيح: استخدام 'salespersons'
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+
+  // حالات التحميل والأخطاء لجلب البيانات
+  const [loadingSalespersons, setLoadingSalespersons] = useState(false);
+  const [errorSalespersons, setErrorSalespersons] = useState(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [errorCustomers, setErrorCustomers] = useState(null);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [errorProducts, setErrorProducts] = useState(null);
+  const [loadingCurrencies, setLoadingCurrencies] = useState(false);
+  const [errorCurrencies, setErrorCurrencies] = useState(null);
 
   const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // لإرسال النموذج
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showOrderSummaryModal, setShowOrderSummaryModal] = useState(false);
   const [currentOrderSummary, setCurrentOrderSummary] = useState(null);
   const [showEditProductInOrderModal, setShowEditProductInOrderModal] = useState(false);
   const [productToEditInOrder, setProductToEditInOrder] = useState(null);
 
-  // Dummy Data (should be fetched from API in a real app)
-  const dummySalespersons = useMemo(() => ([
-    { id: 'USER001', name: 'أحمد (مندوب جملة)', type_user: 'ws_rep' }, // Added type_user
-    { id: 'USER002', name: 'سارة (مندوب تجزئة)', type_user: 'retail_rep' }, // Added type_user
-    { id: 'USER003', name: 'علي (مندوب جملة)', type_user: 'ws_rep' }, // Added type_user
-  ]), []);
-
-  const dummyCustomers = useMemo(() => ([ // Dummy Customers data
-    { id: 'CUST001', name: 'المتجر الكبير' },
-    { id: 'CUST002', name: 'بقالة الأمانة' },
-    { id: 'CUST003', name: 'سوبر ماركت السلام' },
-    { id: 'CUST004', name: 'عميل التجزئة أ' },
-    { id: 'CUST005', name: 'عميل التجزئة ب' },
-  ]), []);
-
-  const dummyProducts = useMemo(() => ([
-    {
-      id: 'PROD001',
-      name: 'أرز المجد 10 كجم',
-      prices_by_currency: {
-        'YER': { general: 7500.25, wholesale: 7000.00 },
-        'USD': { general: 15.00, wholesale: 14.00 }
-      }
-    },
-    {
-      id: 'PROD002',
-      name: 'زيت طبخ 3 لتر',
-      prices_by_currency: {
-        'YER': { general: 5000.00, wholesale: 4800.00 },
-        'USD': { general: 10.00, wholesale: 9.50 }
-      }
-    },
-    {
-      id: 'PROD003',
-      name: 'سكر 5 كجم',
-      prices_by_currency: {
-        'YER': { general: 2500.00, wholesale: 2300.00 },
-        'USD': { general: 5.00, wholesale: 4.50 }
-      }
-    },
-    {
-      id: 'PROD004',
-      name: 'شاي الربيع 100 كيس',
-      prices_by_currency: {
-        'YER': { general: 4000.25, wholesale: 3800.00 },
-        'USD': { general: 8.00, wholesale: 7.50 }
-      }
-    },
-    {
-
-      id: 'PROD005',
-      name: 'مياه صحية 20 لتر',
-      prices_by_currency: {
-        'YER': { general: 600.00, wholesale: 550.00 },
-        'USD': { general: 1.20, wholesale: 1.00 }
-      }
-    },
-  ]), []);
-
-  const dummyCurrencies = useMemo(() => ([
-    { id: 1, name: 'ريال يمني', code: 'YER' },
-    { id: 2, name: 'دولار أمريكي', code: 'USD' },
-    { id: 3, name: 'ريال سعودي', code: 'SAR' },
-  ]), []);
-
-  // Helper to get currency code from currency_id
+  // دالة مساعدة للحصول على رمز العملة من currency_id
   const getCurrencyCodeById = (id) => {
-    return dummyCurrencies.find(c => c.id === id)?.code || '';
+    return currencies.find(c => c.id === id)?.code || '';
   };
 
-  // Reset form fields when modal opens
+  // جلب جميع البيانات الضرورية عند فتح المودال
   useEffect(() => {
+    const fetchAllData = async () => {
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        toast.error('لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.');
+        return;
+      }
+
+      // جلب مندوبي المبيعات
+      setLoadingSalespersons(true);
+      try {
+        const response = await get('admin/users', token);
+        const reps = (response.users || response.data || []).filter(user =>
+            user.type_user === 'ws_rep' || user.type_user === 'retail_rep'
+        );
+        setSalespersons(reps);
+        console.log("AddOrderModal: Fetched Salespersons:", reps); // سجل مندوبي المبيعات التي تم جلبها
+      } catch (err) {
+        setErrorSalespersons('فشل جلب المندوبين.');
+        console.error("Failed to fetch salespersons:", err);
+      } finally {
+        setLoadingSalespersons(false);
+      }
+
+      // جلب العملاء
+      setLoadingCustomers(true);
+      try {
+        const response = await get('admin/customers', token);
+        setCustomers(Array.isArray(response) ? response : response.customers || response.data || []);
+      } catch (err) {
+        setErrorCustomers('فشل جلب العملاء.');
+        console.error("Failed to fetch customers:", err);
+      } finally {
+        setLoadingCustomers(false);
+      }
+
+      // جلب المنتجات
+      setLoadingProducts(true);
+      try {
+        const response = await get('admin/products', token);
+        setProducts(Array.isArray(response) ? response : response.products || response.data || []);
+      } catch (err) {
+        setErrorProducts('فشل جلب المنتجات.');
+        console.error("Failed to fetch products:", err);
+      } finally {
+        setLoadingProducts(false);
+      }
+
+      // جلب العملات
+      setLoadingCurrencies(true);
+      try {
+        const response = await get('admin/currencies', token);
+        const fetchedCurrencies = Array.isArray(response) ? response : response.currencies || response.data || [];
+        setCurrencies(fetchedCurrencies.filter(c => c && typeof c === 'object' && c.id && c.code));
+        // تعيين العملة الافتراضية إذا كانت متاحة ولم يتم تعيينها بعد
+        if (fetchedCurrencies.length > 0 && !currencyId) {
+          setCurrencyId(fetchedCurrencies[0].id);
+          setSelectedCurrencyCode(fetchedCurrencies[0].code);
+        }
+      } catch (err) {
+        setErrorCurrencies('فشل جلب العملات.');
+        console.error("Failed to fetch currencies:", err);
+      } finally {
+        setLoadingCurrencies(false);
+      }
+    };
+
     if (show) {
       setIsVisible(true);
+      // إعادة تعيين حقول النموذج والأخطاء عند فتح المودال
       setSalespersonId('');
-      setSelectedSalespersonType(null); // Reset salesperson type
-      setCustomerId(''); // Reset customer ID
+      setSelectedSalespersonType(null);
+      setCustomerId('');
       setOrderType('cash');
       setCurrencyId('');
       setSelectedCurrencyCode('');
       setProductsInOrder([]);
+      setNote(''); // إعادة تعيين الملاحظة
+      setOrderDate(new Date().toISOString().split('T')[0]); // إعادة تعيين تاريخ الطلب إلى اليوم
       setErrors({});
       setIsLoading(false);
       setCurrentOrderSummary(null);
-      setShowEditProductInOrderModal(false); // Ensure edit modal is closed
-      setProductToEditInOrder(null); // Clear product to edit
+      setShowEditProductInOrderModal(false);
+      setProductToEditInOrder(null);
+
+      fetchAllData(); // استدعاء دالة الجلب غير المتزامنة
     } else {
       setIsVisible(false);
     }
-  }, [show]);
+  }, [show]); // إعادة التشغيل فقط عندما تتغير 'show'
 
-  // Calculate total order amount
+  // حساب المبلغ الإجمالي للطلب
   const totalOrderAmount = useMemo(() => {
     return productsInOrder.reduce((sum, product) => sum + product.total, 0);
   }, [productsInOrder]);
 
   const salespersonOptions = useMemo(() => {
-    // Include type_user in options to easily retrieve it later
-    return dummySalespersons.map(sp => ({ value: sp.id, label: sp.name, type_user: sp.type_user }));
-  }, [dummySalespersons]);
+    // تم التصحيح: استخدام 'salespersons' هنا
+    return salespersons.map(sp => ({ value: sp.id, label: `${sp.name} (${sp.type_user === 'ws_rep' ? 'مندوب جملة' : 'مندوب تجزئة'})`, type_user: sp.type_user }));
+  }, [salespersons]); // تم التصحيح: استخدام 'salespersons' هنا
 
-  const customerOptions = useMemo(() => {
-    return dummyCustomers.map(c => ({ value: c.id, label: c.name }));
-  }, [dummyCustomers]);
+  // جديد: تصفية خيارات العملاء بناءً على مندوب المبيعات المحدد
+  const filteredCustomerOptions = useMemo(() => {
+    if (selectedSalespersonType === 'ws_rep' && salespersonId) {
+      // بافتراض أن مصفوفة 'customers' تحتوي على خاصية 'user_id' ترتبط بمعرف مندوب المبيعات
+      // قد تحتاج إلى تعديل 'customer.user_id' بناءً على بنية استجابة الواجهة الخلفية الفعلية للعملاء
+      const associatedCustomers = customers.filter(cust => cust.user_id === salespersonId);
+      return associatedCustomers.map(c => ({ value: c.id, label: c.name }));
+    }
+    return []; // لا يوجد عملاء لمندوب التجزئة، أو لم يتم اختيار مندوب
+  }, [customers, salespersonId, selectedSalespersonType]);
 
-  const currencyOptions = useMemo(() => {
-    return dummyCurrencies.map(c => ({ value: c.id, label: `${c.name} (${c.code})` }));
-  }, [dummyCurrencies]);
+  // إصلاح لخطأ "Unexpected token, expected '...'" : حساب خيارات العملة مسبقًا باستخدام concat
+  const currencySelectOptions = useMemo(() => {
+    const defaultOption = {
+      value: '',
+      label: (loadingCurrencies ? 'جاري التحميل...' : (errorCurrencies ? 'خطأ في التحميل' : 'اختر عملة...'))
+    };
+    // التأكد من أن currencies هي مصفوفة قبل التعيين
+    const mappedCurrencies = Array.isArray(currencies) ? currencies.map(c => ({ value: c.id, label: `${c.name} (${c.code})` })) : [];
+    // استخدام concat بدلاً من spread لتجنب مشاكل محتملة في المحول البرمجي
+    return [defaultOption].concat(mappedCurrencies);
+  }, [currencies, loadingCurrencies, errorCurrencies]); // إضافة حالات التحميل/الخطأ كاعتمادات أيضًا، لتحديث التسمية
 
   const handleSalespersonChange = (e) => {
-    const selectedId = e.target.value;
-    const selectedSp = dummySalespersons.find(sp => sp.id === selectedId);
+    const selectedId = parseInt(e.target.value); // تحويل إلى رقم
+    const selectedSp = salespersons.find(sp => sp.id === selectedId);
     setSalespersonId(selectedId);
-    setSelectedSalespersonType(selectedSp ? selectedSp.type_user : null); // Set the type
+    setSelectedSalespersonType(selectedSp ? selectedSp.type_user : null); // تعيين النوع
+    console.log("AddOrderModal: Selected Salesperson ID:", selectedId);
+    console.log("AddOrderModal: Selected Salesperson Object:", selectedSp);
+    console.log("AddOrderModal: Selected Salesperson Type (after update):", selectedSp ? selectedSp.type_user : null);
 
-    // If a retail rep is selected, clear the customer field
-    if (selectedSp?.type_user === 'retail_rep') {
-      setCustomerId('');
-    }
+    // إذا تم اختيار مندوب تجزئة، قم بمسح حقل العميل لأنه سيتم إخفاؤه
+    // قم أيضًا بمسح customerId عند تغيير مندوب المبيعات، لإعادة تقييم خيارات العميل
+    setCustomerId('');
+  };
+
+  // جديد: التأكد من تحليل customerId كرقم صحيح
+  const handleCustomerChange = (e) => {
+    setCustomerId(parseInt(e.target.value));
   };
 
   const handleCurrencyChange = (e) => {
     const selectedId = parseInt(e.target.value);
-    const currency = dummyCurrencies.find(c => c.id === selectedId);
+    const currency = currencies.find(c => c.id === selectedId);
     setCurrencyId(selectedId);
     setSelectedCurrencyCode(currency ? currency.code : '');
-    // Clear products if currency changes, as prices might be different
+    // مسح المنتجات إذا تغيرت العملة، حيث قد تكون الأسعار مختلفة
     if (productsInOrder.length > 0) {
       toast.info('تم مسح المنتجات لأن العملة تغيرت. يرجى إعادة إضافة المنتجات بالعملة الجديدة.');
       setProductsInOrder([]);
@@ -197,13 +243,13 @@ export default function AddOrderModal({ show, onClose }) {
     setShowAddProductModal(false);
   };
 
-  // Handler for opening Edit Product in Order Modal
+  // معالج لفتح مودال تعديل المنتج في الطلب
   const handleEditProductInOrderClick = (product) => {
     setProductToEditInOrder(product);
     setShowEditProductInOrderModal(true);
   };
 
-  // Handler for confirming update from EditProductInOrderModal
+  // معالج لتأكيد التحديث من EditProductInOrderModal
   const handleUpdateProductInOrderConfirm = (updatedProduct) => {
     setProductsInOrder(prevProducts =>
       prevProducts.map(p =>
@@ -212,7 +258,7 @@ export default function AddOrderModal({ show, onClose }) {
     );
     toast.success(`تم تحديث المنتج "${updatedProduct.name}" بنجاح!`);
     setShowEditProductInOrderModal(false);
-    setProductToEditInOrder(null); // Clear edited product
+    setProductToEditInOrder(null); // مسح المنتج الذي تم تعديله
   };
 
   const handleViewOrderSummary = () => {
@@ -224,17 +270,18 @@ export default function AddOrderModal({ show, onClose }) {
       toast.error('الرجاء اختيار مندوب مبيعات لعرض الملخص.');
       return;
     }
+    // تحقق شرطي من معرف العميل للملخص
     if (selectedSalespersonType === 'ws_rep' && !customerId) {
-        toast.error('الرجاء اختيار عميل لمندوب الجملة لعرض الملخص.');
-        return;
+      toast.error('الرجاء اختيار عميل لمندوب الجملة لعرض الملخص.');
+      return;
     }
     if (!currencyId) {
       toast.error('الرجاء اختيار عملة الطلب لعرض الملخص.');
       return;
     }
 
-    const salespersonName = dummySalespersons.find(sp => sp.id === salespersonId)?.name || 'غير محدد';
-    const customerName = dummyCustomers.find(cust => cust.id === customerId)?.name || 'N/A'; // Get customer name
+    const salespersonName = salespersons.find(sp => sp.id === salespersonId)?.name || 'غير محدد';
+    const customerName = customers.find(cust => cust.id === customerId)?.name || 'N/A'; // الحصول على اسم العميل
 
     setCurrentOrderSummary({
       products: productsInOrder,
@@ -242,7 +289,7 @@ export default function AddOrderModal({ show, onClose }) {
       currencyCode: selectedCurrencyCode,
       orderType: orderType,
       salespersonName: salespersonName,
-      customerName: selectedSalespersonType === 'ws_rep' ? customerName : 'لا ينطبق', // Pass customer name conditionally
+      customerName: selectedSalespersonType === 'ws_rep' ? customerName : 'لا ينطبق', // تمرير اسم العميل شرطيا
     });
     setShowOrderSummaryModal(true);
   };
@@ -255,7 +302,7 @@ export default function AddOrderModal({ show, onClose }) {
     if (!salespersonId) {
       currentErrors.salespersonId = 'الرجاء اختيار مندوب مبيعات.';
     }
-    // Conditional validation for customer ID
+    // التحقق الشرطي من معرف العميل
     if (selectedSalespersonType === 'ws_rep' && !customerId) {
       currentErrors.customerId = 'الرجاء اختيار عميل لمندوب الجملة.';
     }
@@ -264,6 +311,9 @@ export default function AddOrderModal({ show, onClose }) {
     }
     if (productsInOrder.length === 0) {
       currentErrors.products = 'يجب إضافة منتج واحد على الأقل للطلب.';
+    }
+    if (!orderDate) { // تاريخ الطلب مطلوب أيضًا من الواجهة الخلفية
+        currentErrors.orderDate = 'الرجاء تحديد تاريخ الطلب.';
     }
 
     if (Object.keys(currentErrors).length > 0) {
@@ -283,30 +333,67 @@ export default function AddOrderModal({ show, onClose }) {
         return;
       }
 
-      const payload = {
-        user_id: salespersonId,
-        customer_id: selectedSalespersonType === 'ws_rep' ? customerId : null, // Send customer_id only for wholesale reps
-        type: orderType,
-        currency_id: currencyId,
-        products: productsInOrder.map(p => ({
-          product_id: p.product_id,
-          name: p.name,
-          quantity: p.quantity,
-          unit_price: p.unit_price,
-          total: p.total,
-          price_type: p.price_type, // Include price_type in payload
-        }))
-      };
+      let endpoint = '';
+      let payload = {};
+
+      // تحديد نقطة نهاية API والحمولة بناءً على نوع مندوب المبيعات
+      if (selectedSalespersonType === 'retail_rep') {
+        endpoint = 'admin/shipment-requests'; // نقطة النهاية لطلبات شحن مندوب التجزئة
+        payload = {
+          user_id: salespersonId,
+          payment_type: orderType, // يتطابق مع 'type' في حالتك الحالية
+          shipment_date: orderDate, // يتطابق مع 'orderDate' في حالتك الحالية
+          total_cost: parseFloat(totalOrderAmount.toFixed(2)),
+          items: productsInOrder.map(p => ({
+            product_id: parseInt(p.product_id),
+            quantity: p.quantity,
+            unit_price: parseFloat(p.unit_price) // تم إضافة unit_price كما هو مطلوب من الخطأ
+          })),
+          note: note || null, // اختياري
+          // customer_id و currency_id ليسا مطلوبين صراحةً بواسطة مثال الواجهة الخلفية لطلبات الشحن،
+          // ولكن إذا كانت هناك حاجة إليهما، فيجب إضافتهما هنا.
+          // customer_id: customerId || null,
+          // currency_id: currencyId || null,
+        };
+        toast.info('جاري إنشاء طلب شحن لمندوب التجزئة...');
+      } else if (selectedSalespersonType === 'ws_rep') {
+        endpoint = 'admin/orders'; // نقطة النهاية لطلبات مندوب الجملة
+        payload = {
+          user_id: salespersonId,
+          customer_id: customerId, // العميل مطلوب لطلبات الجملة
+          type: orderType,
+          currency_id: currencyId,
+          status: "pending", // دائمًا معلق عند الإنشاء للطلبات
+          note: note,
+          order_date: orderDate,
+          total_cost: parseFloat(totalOrderAmount.toFixed(2)),
+          products: productsInOrder.map(p => ({
+            product_id: parseInt(p.product_id),
+            name: p.name,
+            quantity: p.quantity,
+            unit_price: parseFloat(p.unit_price),
+            total: parseFloat(p.total),
+          })),
+        };
+        toast.info('جاري إنشاء طلب لمندوب الجملة...');
+      } else {
+        // احتياطي أو خطأ إذا كان نوع مندوب المبيعات غير معروف/غير محدد
+        setErrors({ general: 'الرجاء اختيار مندوب مبيعات صالح لتحديد نوع الطلب.' });
+        toast.error('نوع المندوب غير صالح. لا يمكن تحديد نقطة النهاية.');
+        setIsLoading(false);
+        return;
+      }
 
       console.log("AddOrderModal: Sending payload to API:", payload);
+      console.log("AddOrderModal: Using endpoint:", endpoint);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 700));
-      const response = { status: true, message: 'Order created successfully!' };
+      const response = await post(endpoint, payload, token);
+
+      console.log("AddOrderModal: API response for POST:", response);
 
       if (response.status) {
-        toast.success('تم إنشاء الطلب بنجاح!');
-        onClose(true);
+        toast.success(`تم إنشاء الطلب بنجاح! ${response.order_number ? `رقم الطلب: ${response.order_number}` : ''}`);
+        onClose(true); // إغلاق المودال وإشارة إلى النجاح
       } else {
         const apiErrorMessage = response.message || 'فشل إنشاء الطلب.';
         setErrors({ general: apiErrorMessage });
@@ -314,8 +401,30 @@ export default function AddOrderModal({ show, onClose }) {
       }
     } catch (err) {
       console.error("AddOrderModal: Caught error during POST:", err);
-      const errorMessage = err.message || 'حدث خطأ غير متوقع عند إنشاء الطلب.';
-      setErrors({ general: errorMessage });
+      let errorMessage = err.message || 'حدث خطأ غير متوقع عند إنشاء الطلب.';
+      
+      // محاولة تحليل أخطاء التحقق من الواجهة الخلفية إذا كانت متاحة (مثل حالة 422)
+      if (err.response && err.response.status === 422 && err.response.data && err.response.data.errors) {
+        const backendErrors = err.response.data.errors;
+        console.log("AddOrderModal: Backend validation errors:", backendErrors); // جديد: سجل أخطاء الواجهة الخلفية
+        let detailedErrors = {};
+        if (backendErrors.user_id) detailedErrors.salespersonId = backendErrors.user_id[0];
+        if (backendErrors.customer_id) detailedErrors.customerId = backendErrors.customer_id[0];
+        if (backendErrors.currency_id) detailedErrors.currencyId = backendErrors.currency_id[0];
+        if (backendErrors.items) detailedErrors.products = backendErrors.items[0]; // خطأ 'items' ينطبق على قائمة المنتجات
+        if (backendErrors.note) detailedErrors.note = backendErrors.note[0];
+        if (backendErrors.shipment_date) detailedErrors.orderDate = backendErrors.shipment_date[0]; // لمندوب التجزئة
+        if (backendErrors.order_date) detailedErrors.orderDate = backendErrors.order_date[0]; // لمندوب الجملة
+        if (backendErrors.payment_type) detailedErrors.orderType = backendErrors.payment_type[0]; // لمندوب التجزئة
+        if (backendErrors.total_cost) detailedErrors.general = backendErrors.total_cost[0];
+        
+        setErrors(detailedErrors);
+        errorMessage = 'فشل التحقق: يرجى مراجعة الحقول المدخلة.';
+      } else if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
+      }
+
+      setErrors(prev => ({ ...prev, general: errorMessage })); // تعيين خطأ عام
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -325,13 +434,13 @@ export default function AddOrderModal({ show, onClose }) {
   return (
     <ModalWrapper
       show={show}
-      onClose={onClose}
+      onClose={() => onClose(false)} // تمرير false عند الإغلاق
       isVisible={isVisible}
       title="إضافة طلب جديد"
       maxWidth="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 text-right">
-        {/* Adjusted grid to handle 4 columns when customer field is visible */}
+        {/* شبكة معدلة للتعامل مع 4 أعمدة عندما يكون حقل العميل مرئياً */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <FormSelectField
             label="نوع الطلب"
@@ -343,28 +452,49 @@ export default function AddOrderModal({ show, onClose }) {
           <FormSelectField
             label="المندوب"
             value={salespersonId}
-            onChange={handleSalespersonChange} // Use the new handler
-            options={[{ value: '', label: 'اختر مندوب...' }, ...salespersonOptions]}
+            onChange={handleSalespersonChange} // استخدام المعالج الجديد
+            options={[{ value: '', label: (loadingSalespersons ? 'جاري التحميل...' : (errorSalespersons ? 'خطأ في التحميل' : 'اختر مندوب...')) }, ...salespersonOptions]}
             error={errors.salespersonId}
+            disabled={loadingSalespersons || !!errorSalespersons}
           />
-          {/* Conditional Customer Field */}
+          {/* حقل العميل الشرطي */}
           {selectedSalespersonType === 'ws_rep' && (
             <FormSelectField
               label="العميل"
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              options={[{ value: '', label: 'اختر عميل...' }, ...customerOptions]}
+              onChange={handleCustomerChange} // جديد: استخدام handleCustomerChange
+              options={[{ value: '', label: (loadingCustomers ? 'جاري التحميل...' : (errorCustomers ? 'خطأ في التحميل' : 'اختر عميل...')) }, ...filteredCustomerOptions]}
               error={errors.customerId}
+              disabled={loadingCustomers || !!errorCustomers || !salespersonId}
             />
           )}
-          {/* Always render currency field */}
+          {/* عرض حقل العملة دائمًا */}
           <FormSelectField
             label="العملة"
             value={currencyId}
             onChange={handleCurrencyChange}
-            options={currencyOptions}
+            options={currencySelectOptions}
             error={errors.currencyId}
+            disabled={loadingCurrencies || !!errorCurrencies}
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInputField
+                label="ملاحظات"
+                type="text"
+                placeholder="أدخل أي ملاحظات حول الطلب (اختياري)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                error={errors.note}
+            />
+            <FormInputField
+                label="تاريخ الطلب"
+                type="date"
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
+                error={errors.orderDate}
+            />
         </div>
 
         <div className="border border-gray-700 p-4 rounded-lg flex flex-col gap-3">
@@ -382,12 +512,12 @@ export default function AddOrderModal({ show, onClose }) {
                   <div className="flex-1">
                     <p className="font-semibold text-lg">{product.name}</p>
                     <p className="text-gray-300 text-sm">
-                      الكمية: {product.quantity} - سعر الوحدة: {product.unit_price.toFixed(2)} {selectedCurrencyCode}
-                      {product.price_type && ` (${product.price_type === 'general' ? 'عام' : product.price_type === 'wholesale' ? 'جملة' : product.price_type})`}
+                      الكمية: {product.quantity} - سعر الوحدة: {product.unit_price?.toFixed(2) || 'N/A'} {selectedCurrencyCode}
+                      {product.price_type && ` (${product.price_type === 'general' ? 'عام' : product.price_type === 'wholesale' ? 'جملة' : product.price_type === 'retail' ? 'تجزئة' : product.price_type})`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className="font-bold text-accentColor text-lg">{product.total.toFixed(2)} {selectedCurrencyCode}</p>
+                    <p className="font-bold text-accentColor text-lg">{product.total?.toFixed(2) || 'N/A'} {selectedCurrencyCode}</p>
                     <button
                       type="button"
                       onClick={() => handleEditProductInOrderClick(product)}
@@ -418,6 +548,7 @@ export default function AddOrderModal({ show, onClose }) {
             type="button"
             onClick={handleAddProductClick}
             className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center justify-center gap-1 mt-3"
+            disabled={loadingProducts || !!errorProducts || !selectedCurrencyCode} // تعطيل إذا كانت المنتجات/العملات قيد التحميل أو غير محددة
           >
             <PlusIcon className="w-5 h-5 text-white" />
             <span>إضافة منتج</span>
@@ -459,34 +590,34 @@ export default function AddOrderModal({ show, onClose }) {
         </div>
       </form>
 
-      {/* Add Product To Order Modal */}
+      {/* مودال إضافة منتج للطلب */}
       <AddProductToOrderModal
         show={showAddProductModal}
         onClose={() => setShowAddProductModal(false)}
         onAddProductConfirm={handleAddProductConfirm}
-        availableProducts={dummyProducts}
+        availableProducts={products} // تمرير المنتجات الفعلية التي تم جلبها
         selectedCurrencyCode={selectedCurrencyCode}
         orderType={orderType}
-        salespersonType={selectedSalespersonType} // Pass salesperson type for pricing logic
+        salespersonType={selectedSalespersonType} // تمرير نوع مندوب المبيعات لمنطق التسعير
       />
 
-      {/* Order Summary Modal */}
+      {/* مودال ملخص الطلب */}
       <OrderSummaryModal
         show={showOrderSummaryModal}
         onClose={() => setShowOrderSummaryModal(false)}
         orderSummary={currentOrderSummary}
       />
 
-      {/* Edit Product In Order Modal */}
+      {/* مودال تعديل المنتج في الطلب */}
       <EditProductInOrderModal
         show={showEditProductInOrderModal}
         onClose={() => setShowEditProductInOrderModal(false)}
         onUpdateProductConfirm={handleUpdateProductInOrderConfirm}
         productToEdit={productToEditInOrder}
-        allAvailableProducts={dummyProducts} // Pass all available products for price lookup
+        allAvailableProducts={products} // تمرير جميع المنتجات المتاحة للبحث عن السعر
         selectedCurrencyCode={selectedCurrencyCode}
         orderType={orderType}
-        salespersonType={selectedSalespersonType} // Pass salesperson type for pricing logic
+        salespersonType={selectedSalespersonType} // تمرير نوع مندوب المبيعات لمنطق التسعير
       />
     </ModalWrapper>
   );

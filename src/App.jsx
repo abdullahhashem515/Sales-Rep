@@ -4,13 +4,16 @@ import { store } from './app/store';
 import { router } from './app/router.jsx';
 import { ThemeProvider } from '@mui/material';
 import theme from './app/theme';
+import { AuthProvider } from './contexts/AuthContext'; // ✅ إضافة
 
 function App() {
   return (
     <Provider store={store}>
-      <ThemeProvider theme={theme}>
-        <RouterProvider router={router} />
-      </ThemeProvider>
+      <AuthProvider> {/* ✅ تغليف التطبيق */}
+        <ThemeProvider theme={theme}>
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </AuthProvider>
     </Provider>
   );
 }
