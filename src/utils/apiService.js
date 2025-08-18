@@ -85,7 +85,7 @@ export const put = async (endpoint, data, token) => {
     const response = await axios.put(`${API_BASE_URL}/${endpoint}`, data, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json', 
       },
     });
     return response.data;

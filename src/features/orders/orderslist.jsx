@@ -57,65 +57,95 @@ export default function OrdersList() {
   };
 
   // --- Fetch Orders ---
-  const fetchOrders = async () => {
-    setLoadingOrders(true);
-    setErrorOrders(null);
+// --- Fetch Orders ---
+const fetchOrders = async () => {
+  setLoadingOrders(true);
+  setErrorOrders(null);
+  
+  try {
+    if (!token) throw new Error("لا يوجد رمز مصادقة.");
+
+    let wholesaleOrders = [];
+    let retailOrders = [];
+
+    // جلب طلبات الجملة
     try {
-      if (!token) throw new Error("لا يوجد رمز مصادقة.");
-      // مندوب الجملة
       const wholesaleRes = await get('admin/orders', token);
-      // مندوب التجزئة
+      wholesaleOrders = Array.isArray(wholesaleRes) 
+        ? wholesaleRes.map(item => ({
+            order_id: item.order_number,
+            customer_id: item.customer?.name || `عميل ${item.customer_id}`,
+            user_id: item.user_id?.toString(),
+            order_date: item.order_date,
+            total: parseFloat(item.total_cost) || 0,
+            status: item.status,
+            type: item.type,
+            currency_id: item.currency_id || 1,
+            slug: item.slug || item.order_number,
+            products: (item.items || []).map(p => ({
+              product_id: p.product_id,
+              name: p.name || `منتج ${p.product_id}`,
+              quantity: p.quantity || 0,
+              unit_price: parseFloat(p.unit_price || 0),
+              total: parseFloat(p.total || 0)
+            })),
+            type_order: 'wholesale',
+            note: item.note || '',          // ← الحقل الجديد
+            status_note: item.status_note || '' // ← الحقل الجديد
+          }))
+        : [];
+    } catch (wholesaleError) {
+      console.error("Error fetching wholesale orders:", wholesaleError);
+      toast.error('حدث خطأ في جلب طلبات الجملة: ' + (wholesaleError.message || ''));
+    }
+
+    // جلب طلبات التجزئة
+    try {
       const retailRes = await get('admin/shipment-requests', token);
 
-      const retailOrders = (retailRes.customers || []).map(item => ({
-        order_id: item.shipment_number,
-        customer_id: null, // لا يوجد عميل للتجزئة
-        user_id: item.user_id.toString(),
-        order_date: item.shipment_date,
-        total: parseFloat(item.total_cost),
-        status: item.status,
-        type: item.payment_type,
-        currency_id: 2,
-        slug: item.slug || item.shipment_number,
-        products: (item.items || []).map(p => ({
-          product_id: p.product_id,
-          name: p.name || `منتج ${p.product_id}`,
-          quantity: p.quantity,
-          unit_price: parseFloat(p.unit_price || p.unit_price),
-          total: parseFloat(p.total_price)
-        })),
-        type_order: 'retail'
-      }));
-
-      const wholesaleOrders = (wholesaleRes || []).map(item => ({
-        order_id: item.order_number,
-        customer_id: item.customer?.name || `عميل ${item.customer_id}`,
-        user_id: item.user_id.toString(),
-        order_date: item.order_date,
-        total: parseFloat(item.total_cost),
-        status: item.status,
-        type: item.type,
-        currency_id: item.currency_id,
-        slug: item.slug || item.order_number,
-        products: (item.items || []).map(p => ({
-          product_id: p.product_id,
-          name: p.name,
-          quantity: p.quantity,
-          unit_price: parseFloat(p.unit_price),
-          total: parseFloat(p.total)
-        })),
-        type_order: 'wholesale'
-      }));
-
-      setOrders([...wholesaleOrders, ...retailOrders]);
-    } catch (err) {
-      console.error("Failed to fetch orders:", err);
-      setErrorOrders(err.message || 'فشل في جلب الطلبات.');
-      toast.error('فشل في جلب الطلبات: ' + (err.message || 'خطأ غير معروف.'));
-    } finally {
-      setLoadingOrders(false);
+      retailOrders = Array.isArray(retailRes["shipment-Request"]) 
+        ? retailRes["shipment-Request"].map(item => ({
+            order_id: item.shipment_number,
+            customer_id: null,
+            user_id: item.user_id?.toString(),
+            order_date: item.shipment_date,
+            total: parseFloat(item.total_cost) || 0,
+            status: item.status,
+            type: item.payment_type,
+            currency_id: 2,
+            slug: item.slug || item.shipment_number,
+            products: (item.items || []).map(p => ({
+              product_id: p.product_id,
+              name: p.name || `منتج ${p.product_id}`,
+              quantity: p.quantity || 0,
+              unit_price: parseFloat(p.unit_price || 0),
+              total: parseFloat(p.total_price || 0)
+            })),
+            type_order: 'retail',
+            note: item.note || '',          // ← الحقل الجديد
+            status_note: item.status_note || '' // ← الحقل الجديد
+          }))
+        : [];
+    } catch (retailError) {
+      if (retailError.status === 404) {
+        console.log("No retail orders found - this is expected behavior");
+      } else {
+        console.error("Error fetching retail orders:", retailError);
+        toast.error('حدث خطأ في جلب طلبات التجزئة: ' + (retailError.message || ''));
+      }
     }
-  };
+
+    setOrders([...wholesaleOrders, ...retailOrders]);
+    
+  } catch (err) {
+    console.error("General error in fetchOrders:", err);
+    setErrorOrders(err.message || 'فشل في جلب الطلبات.');
+    toast.error('فشل في جلب الطلبات: ' + (err.message || 'خطأ غير معروف.'));
+  } finally {
+    setLoadingOrders(false);
+  }
+};
+
 
   useEffect(() => {
     fetchUsers();
@@ -185,12 +215,12 @@ const handleViewOrderClick = (order) => {
     { value: 'customer_id', label: 'العميل' }, 
   ];
 
-  const statusFilterOptions = [
-    { value: 'all', label: 'كل الحالات' },
-    { value: 'pending', label: 'معلق' },
-    { value: 'approved', label: 'موافق' },
-    { value: 'rejected', label: 'مرفوض' },
-  ];
+const statusFilterOptions = [
+  { value: 'all', label: 'كل الحالات' },
+  { value: 'pending', label: 'معلق' },
+  { value: 'accepted', label: 'مقبول' },
+  { value: 'cancelled', label: 'ملغى' },
+];
 
   const filteredOrders = useMemo(() => {
     let currentFilteredOrders = orders;
@@ -220,21 +250,22 @@ const handleViewOrderClick = (order) => {
   }, [orders, searchTerm, searchBy, filterStatus, dateRangeFilter]);
 
   const getStatusLabel = (status) => {
-    switch(status) {
-      case 'pending': return 'معلق';
-      case 'approved': return 'موافق';
-      case 'rejected': return 'مرفوض';
-      default: return status;
-    }
-  };
-  const getStatusColorClass = (status) => {
-    switch(status) {
-      case 'pending': return 'bg-yellow-500';
-      case 'approved': return 'bg-green-500';
-      case 'rejected': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  switch(status) {
+    case 'pending': return 'معلق';
+    case 'accepted': return 'مقبول';
+    case 'cancelled': return 'ملغى';
+    default: return status;
+  }
+};
+
+const getStatusColorClass = (status) => {
+  switch(status) {
+    case 'pending': return 'bg-yellow-500';
+    case 'accepted': return 'bg-green-500';
+    case 'cancelled': return 'bg-red-500';
+    default: return 'bg-gray-500';
+  }
+};
 
   return (
     <MainLayout>
@@ -350,8 +381,18 @@ const handleViewOrderClick = (order) => {
 
       {/* Modals */}
       <AddOrderModal show={showAddOrderModal} onClose={handleOrderModalClose} />
-      <ViewOrderModal show={showViewOrderModal} onClose={handleOrderModalClose} order={orderToView} />
-      <UpdateOrderModal show={showUpdateOrderModal} onClose={handleOrderModalClose} orderToEdit={orderToEdit} />
+<ViewOrderModal
+  show={showViewOrderModal}
+  onClose={handleOrderModalClose}
+  order={orderToView}
+  onUpdateOrderStatus={(updatedOrder) => {
+    setOrders(prevOrders =>
+      prevOrders.map(o =>
+        o.order_id === updatedOrder.order_id ? updatedOrder : o
+      )
+    );
+  }}
+/>      <UpdateOrderModal show={showUpdateOrderModal} onClose={handleOrderModalClose} orderToEdit={orderToEdit} />
       <ConfirmDeleteModal
         show={showDeleteOrderModal}
         onClose={() => handleOrderModalClose(false)}

@@ -146,46 +146,35 @@ export default function Customerslist() {
   };
 
   // Handle actual deletion
-  const handleConfirmDeleteCustomer = async () => {
-    if (!customerToDelete) return;
+const handleConfirmDeleteCustomer = async () => {
+  if (!customerToDelete) return;
 
-    setLoadingCustomers(true); // Show loading
-    try {
-      const token = localStorage.getItem('userToken');
-      if (!token) {
-        toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-        setLoadingCustomers(false);
-        return;
-      }
-      
-      // ✅ استخدام customerToDelete.slug للحذف من الـ API
-      const response = await del(`admin/customers/${customerToDelete.slug}`, token); 
-
-      if (response.status) {
-        toast.success('تم حذف العميل بنجاح!');
-        // ✅ تم التعديل: تحديث الحالة المحلية على الفور لإزالة العميل
-        // استخدم `customerToDelete.id` لضمان تطابق المفتاح (`key`) المستخدم في `CustomerCard`.
-        // هذا يضمن أن React يمكنها إزالة العنصر من العرض مباشرة.
-        setCustomers(prevCustomers => prevCustomers.filter(cust => cust.id !== customerToDelete.id));
-        
-        // لا داعي لاستدعاء `fetchCustomers()` هنا مباشرة بعد التحديث المحلي.
-        // وسيتم استدعاؤها عبر `handleCustomerModalClose` بعد تأخير قصير لضمان المزامنة الكاملة.
-      } else {
-        const apiErrorMessage = response.message || 'فشل حذف العميل.';
-        toast.error(apiErrorMessage);
-      }
-    } catch (err) {
-      console.error("Error deleting customer:", err);
-      toast.error('فشل في حذف العميل: ' + (err.message || 'خطأ غير معروف.'));
-    } finally {
+  setLoadingCustomers(true);
+  try {
+    const token = localStorage.getItem('userToken');
+    if (!token) {
+      toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
       setLoadingCustomers(false);
-      setShowDeleteCustomerModal(false); // Close delete confirmation modal
-      setCustomerToDelete(null); // Clear customer to delete
-      // لا يوجد استدعاء صريح لـ `fetchCustomers()` هنا؛ `handleCustomerModalClose` ستقوم بذلك بعد تأخير.
-      // يجب أن يتم استدعاء handleCustomerModalClose(true) هنا لإعادة جلب البيانات بعد النجاح أو الفشل!
-      handleCustomerModalClose(true); // Always trigger close to allow re-fetch
+      return;
     }
-  };
+
+    await del(`admin/customers/${customerToDelete.slug}`, token); 
+
+    // ✅ الرسالة بالعربية دائمًا، نتجاهل أي رسالة من السيرفر
+    toast.success('تم حذف العميل بنجاح!');
+
+    // تحديث الحالة المحلية مباشرة لإزالة العميل
+    setCustomers(prev => prev.filter(cust => cust.id !== customerToDelete.id));
+
+  } catch (err) {
+    console.error("Error deleting customer:", err);
+    toast.error('فشل في حذف العميل: ' + (err.message || 'خطأ غير معروف.'));
+  } finally {
+    setLoadingCustomers(false);
+    handleCustomerModalClose(true);
+  }
+};
+
 
 
   return (
