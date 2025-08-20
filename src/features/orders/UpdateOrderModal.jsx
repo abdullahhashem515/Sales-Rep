@@ -7,10 +7,8 @@ import AddProductToOrderModal from "./AddProductToOrderModal";
 import EditProductInOrderModal from "./EditProductInOrderModal";
 import { toast } from "react-toastify";
 import { put, get } from "../../utils/apiService";
-import OrderSummaryModal from './OrderSummaryModal';
+import OrderSummaryModal from "./OrderSummaryModal";
 import SearchableSelectField from "../../components/shared/SearchableSelectField"; // تأكد من المسار
-
-
 
 export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
   const orderData = orderToEdit || { customer_id: null, customer: {} };
@@ -24,8 +22,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
   const [orderDate, setOrderDate] = useState("");
   const [originalOrderData, setOriginalOrderData] = useState(null);
   const [showOrderSummaryModal, setShowOrderSummaryModal] = useState(false);
-const [currentOrderSummary, setCurrentOrderSummary] = useState(null);
-
+  const [currentOrderSummary, setCurrentOrderSummary] = useState(null);
 
   const [salespersons, setSalespersons] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -80,71 +77,73 @@ const [currentOrderSummary, setCurrentOrderSummary] = useState(null);
       fetchData();
     }
   }, [show]);
-console.log(orderToEdit)
+  console.log(orderToEdit);
   // تعبئة حقول النموذج عند تغيير orderData
- useEffect(() => {
-  if (show && orderToEdit && orderToEdit.slug && !loadingData) {
-    setIsVisible(true);
+  useEffect(() => {
+    if (show && orderToEdit && orderToEdit.slug && !loadingData) {
+      setIsVisible(true);
 
-    // تحويل user_id إلى رقم
-    const spId = Number(orderToEdit.user_id || "");
-    setSalespersonId(spId);
+      // تحويل user_id إلى رقم
+      const spId = Number(orderToEdit.user_id || "");
+      setSalespersonId(spId);
 
-    // تحديد نوع المندوب
-    const spType =
-      salespersons.find((sp) => sp.id === spId)?.type_user ||
-      orderToEdit.user?.type_user ||
-      null;
-    setSelectedSalespersonType(spType);
+      // تحديد نوع المندوب
+      const spType =
+        salespersons.find((sp) => sp.id === spId)?.type_user ||
+        orderToEdit.user?.type_user ||
+        null;
+      setSelectedSalespersonType(spType);
 
-    // تحويل customer_id إلى id رقمي من القائمة إذا كان الاسم موجودًا
-    let initialCustomerId = null;
-    if (spType === "ws_rep") {
-      const matchedCustomer = customers.find(
-        (c) => c.name === orderToEdit.customer_id || c.id === orderToEdit.customer?.id
+      // تحويل customer_id إلى id رقمي من القائمة إذا كان الاسم موجودًا
+      let initialCustomerId = null;
+      if (spType === "ws_rep") {
+        const matchedCustomer = customers.find(
+          (c) =>
+            c.name === orderToEdit.customer_id ||
+            c.id === orderToEdit.customer?.id
+        );
+        initialCustomerId = matchedCustomer ? matchedCustomer.id : null;
+      }
+      setCustomerId(initialCustomerId);
+
+      // تعبئة المنتجات
+      setProductsInOrder(
+        orderToEdit.products
+          ? orderToEdit.products.map((p) => ({
+              ...p,
+              quantity: Number(p.quantity),
+              unit: p.unit || "",
+            }))
+          : []
       );
-      initialCustomerId = matchedCustomer ? matchedCustomer.id : null;
+
+      setOrderStatus(orderToEdit.status || "");
+      setOrderNotes(orderToEdit.note || "");
+      setOrderDate(
+        orderToEdit.order_date ||
+          orderToEdit.shipment_date ||
+          new Date().toISOString().split("T")[0]
+      );
+
+      setOriginalOrderData({
+        customer_id: initialCustomerId,
+        user_id: spId,
+        products: orderToEdit.products || [],
+        notes: orderToEdit.notes || "",
+        order_date: orderToEdit.order_date || orderToEdit.shipment_date || "",
+      });
+
+      setErrors({});
+
+      // console.log للتحقق
+      console.log("✅ salespersonId:", spId);
+      console.log("✅ selectedSalespersonType:", spType);
+      console.log("✅ customerId:", initialCustomerId);
+      console.log("✅ productsInOrder:", orderToEdit.products);
+    } else if (!show) {
+      resetForm();
     }
-    setCustomerId(initialCustomerId);
-
-    // تعبئة المنتجات
-    setProductsInOrder(
-      orderToEdit.products
-        ? orderToEdit.products.map((p) => ({
-            ...p,
-            quantity: Number(p.quantity),
-            unit: p.unit || "",
-          }))
-        : []
-    );
-
-    setOrderStatus(orderToEdit.status || "");
-    setOrderNotes(orderToEdit.note || "");
-    setOrderDate(
-      orderToEdit.order_date ||
-        orderToEdit.shipment_date ||
-        new Date().toISOString().split("T")[0]
-    );
-
-    setOriginalOrderData({
-      customer_id: initialCustomerId,
-      user_id: spId,
-      products: orderToEdit.products || [],
-      notes: orderToEdit.notes || "",
-      order_date: orderToEdit.order_date || orderToEdit.shipment_date || "",
-    });
-
-    setErrors({});
-
-    // console.log للتحقق
-    console.log("✅ salespersonId:", spId);
-    console.log("✅ selectedSalespersonType:", spType);
-    console.log("✅ customerId:", initialCustomerId);
-    console.log("✅ productsInOrder:", orderToEdit.products);
-  } else if (!show) {
-    resetForm();
-  }
-}, [show, orderToEdit, salespersons, customers, loadingData]);
+  }, [show, orderToEdit, salespersons, customers, loadingData]);
 
   const resetForm = () => {
     setCustomerId(null);
@@ -186,32 +185,33 @@ console.log(orderToEdit)
     setCustomerId(null);
   };
 
+  const handleViewOrderSummary = () => {
+    if (productsInOrder.length === 0) {
+      toast.info("لا توجد منتجات في الطلب لعرض الملخص.");
+      return;
+    }
+    if (!salespersonId) {
+      toast.error("الرجاء اختيار مندوب مبيعات لعرض الملخص.");
+      return;
+    }
+    if (selectedSalespersonType === "ws_rep" && !customerId) {
+      toast.error("الرجاء اختيار عميل لمندوب الجملة لعرض الملخص.");
+      return;
+    }
 
-const handleViewOrderSummary = () => {
-  if (productsInOrder.length === 0) {
-    toast.info('لا توجد منتجات في الطلب لعرض الملخص.');
-    return;
-  }
-  if (!salespersonId) {
-    toast.error('الرجاء اختيار مندوب مبيعات لعرض الملخص.');
-    return;
-  }
-  if (selectedSalespersonType === 'ws_rep' && !customerId) {
-    toast.error('الرجاء اختيار عميل لمندوب الجملة لعرض الملخص.');
-    return;
-  }
+    const salespersonName =
+      salespersons.find((sp) => sp.id === salespersonId)?.name || "غير محدد";
+    const customerName =
+      customers.find((cust) => cust.id === customerId)?.name || "N/A";
 
-  const salespersonName = salespersons.find(sp => sp.id === salespersonId)?.name || 'غير محدد';
-  const customerName = customers.find(cust => cust.id === customerId)?.name || 'N/A';
-
-  setCurrentOrderSummary({
-    products: productsInOrder,
-    salespersonName,
-    customerName: selectedSalespersonType === 'ws_rep' ? customerName : 'لا ينطبق',
-  });
-  setShowOrderSummaryModal(true);
-};
-
+    setCurrentOrderSummary({
+      products: productsInOrder,
+      salespersonName,
+      customerName:
+        selectedSalespersonType === "ws_rep" ? customerName : "لا ينطبق",
+    });
+    setShowOrderSummaryModal(true);
+  };
 
   const handleAddProductClick = () => {
     setShowAddProductModal(true);
@@ -254,83 +254,83 @@ const handleViewOrderSummary = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setErrors({});
-  const currentErrors = {};
+    e.preventDefault();
+    setErrors({});
+    const currentErrors = {};
 
-  if (!salespersonId)
-    currentErrors.salespersonId = "الرجاء اختيار مندوب مبيعات";
-  if (productsInOrder.length === 0)
-    currentErrors.products = "يجب إضافة منتج واحد على الأقل";
-  if (!orderDate) currentErrors.orderDate = "الرجاء تحديد تاريخ الطلب";
+    if (!salespersonId)
+      currentErrors.salespersonId = "الرجاء اختيار مندوب مبيعات";
+    if (productsInOrder.length === 0)
+      currentErrors.products = "يجب إضافة منتج واحد على الأقل";
+    if (!orderDate) currentErrors.orderDate = "الرجاء تحديد تاريخ الطلب";
 
-  if (Object.keys(currentErrors).length > 0) {
-    setErrors(currentErrors);
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    const token = localStorage.getItem("userToken");
-    if (!token) throw new Error("انتهت صلاحية الجلسة، يرجى تسجيل الدخول");
-
-    let payload;
-
-    if (orderToEdit.type_order === "retail") {
-      // --- حمولة طلبات التجزئة ---
-      payload = {
-        user_id: salespersonId,
-        shipment_date: orderDate,
-        items: productsInOrder.map((item) => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-        })),
-        note: orderNotes,
-      };
-    } else {
-      // --- حمولة طلبات الجملة ---
-      payload = {
-        user_id: salespersonId,
-        customer_id: customerId,
-        order_date: orderDate,
-        items: productsInOrder.map((item) => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-        })),
-        note: orderNotes,
-      };
+    if (Object.keys(currentErrors).length > 0) {
+      setErrors(currentErrors);
+      return;
     }
 
-    // تحديد نقطة النهاية حسب النوع
-    const endpoint =
-      orderToEdit.type_order === "retail"
-        ? `admin/shipment-requests/${orderToEdit.slug}`
-        : `admin/orders/${orderToEdit.slug}`;
+    setIsLoading(true);
 
-    const response = await put(endpoint, payload, token);
+    try {
+      const token = localStorage.getItem("userToken");
+      if (!token) throw new Error("انتهت صلاحية الجلسة، يرجى تسجيل الدخول");
 
-    if (!response.status) {
-      throw new Error(response.message || "فشل في تحديث الطلب");
+      let payload;
+
+      if (orderToEdit.type_order === "retail") {
+        // --- حمولة طلبات التجزئة ---
+        payload = {
+          user_id: salespersonId,
+          shipment_date: orderDate,
+          items: productsInOrder.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+          })),
+          note: orderNotes,
+        };
+      } else {
+        // --- حمولة طلبات الجملة ---
+        payload = {
+          user_id: salespersonId,
+          customer_id: customerId,
+          order_date: orderDate,
+          items: productsInOrder.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+          })),
+          note: orderNotes,
+        };
+      }
+
+      // تحديد نقطة النهاية حسب النوع
+      const endpoint =
+        orderToEdit.type_order === "retail"
+          ? `admin/shipment-requests/${orderToEdit.slug}`
+          : `admin/orders/${orderToEdit.slug}`;
+
+      const response = await put(endpoint, payload, token);
+
+      if (!response.status) {
+        throw new Error(response.message || "فشل في تحديث الطلب");
+      }
+
+      toast.success(`تم تحديث الطلب بنجاح`);
+      onClose(true);
+    } catch (error) {
+      console.error("Update order error:", error);
+      toast.error(error.message || "حدث خطأ أثناء تحديث الطلب");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    toast.success(`تم تحديث الطلب بنجاح`);
-    onClose(true);
-  } catch (error) {
-    console.error("Update order error:", error);
-    toast.error(error.message || "حدث خطأ أثناء تحديث الطلب");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
+  console.log("'gfffffffffffffffffffffff", orderData);
   return (
     <ModalWrapper
       show={show}
       onClose={() => onClose(false)}
       isVisible={isVisible}
-      title={`تعديل الطلب: ${orderData?.order_number || orderData?.slug || ""}`}
+      title={`تعديل الطلب: ${orderData?.order_id || ""}`}
       maxWidth="max-w-4xl"
       maxHeight="max-h-[90vh]"
     >
@@ -346,47 +346,51 @@ const handleViewOrderSummary = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SearchableSelectField
-    label="المندوب"
-    value={salespersonId}
-    onChange={(val) => {
-      const selectedSp = salespersons.find((sp) => sp.id === Number(val));
-      setSalespersonId(Number(val));
-      setSelectedSalespersonType(selectedSp ? selectedSp.type_user : null);
-      setCustomerId(null);
-    }}
-    options={[
-      { value: "", label: "اختر مندوب..." },
-      ...salespersonOptions,
-    ]}
-    error={errors.salespersonId}
-    className=""
-  />
+              <SearchableSelectField
+                label="المندوب"
+                value={salespersonId}
+                onChange={(val) => {
+                  const selectedSp = salespersons.find(
+                    (sp) => sp.id === Number(val)
+                  );
+                  setSalespersonId(Number(val));
+                  setSelectedSalespersonType(
+                    selectedSp ? selectedSp.type_user : null
+                  );
+                  setCustomerId(null);
+                }}
+                options={[
+                  { value: "", label: "اختر مندوب..." },
+                  ...salespersonOptions,
+                ]}
+                error={errors.salespersonId}
+                className=""
+              />
 
-  {selectedSalespersonType === "ws_rep" && orderData && (
-    <SearchableSelectField
-      label="العميل"
-      value={customerId || ""}
-      onChange={(val) => {
-        setCustomerId(val ? Number(val) : null);
-      }}
-      options={[
-        {
-          value: customerId || "",
-          label:
-            orderData?.customer_id ||
-            orderData?.customer?.name ||
-            "غير معين",
-        },
-        ...customerOptions.filter(
-          (c) => c.value !== (orderData?.customer?.id || null)
-        ),
-      ]}
-      error={errors.customerId}
-      className=""
-      placeholder="ابحث عن العميل..."
-    />
-  )}
+              {selectedSalespersonType === "ws_rep" && orderData && (
+                <SearchableSelectField
+                  label="العميل"
+                  value={customerId || ""}
+                  onChange={(val) => {
+                    setCustomerId(val ? Number(val) : null);
+                  }}
+                  options={[
+                    {
+                      value: customerId || "",
+                      label:
+                        orderData?.customer_id ||
+                        orderData?.customer?.name ||
+                        "غير معين",
+                    },
+                    ...customerOptions.filter(
+                      (c) => c.value !== (orderData?.customer?.id || null)
+                    ),
+                  ]}
+                  error={errors.customerId}
+                  className=""
+                  placeholder="ابحث عن العميل..."
+                />
+              )}
               <FormInputField
                 label="تاريخ الطلب"
                 type="date"
@@ -420,8 +424,9 @@ const handleViewOrderSummary = () => {
                           {product.name}{" "}
                           {product.unit ? `(${product.unit})` : ""}
                         </p>
-                                            <p className="text-gray-300 text-sm">الكمية: {product.quantity}</p>
-
+                        <p className="text-gray-300 text-sm">
+                          الكمية: {product.quantity}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -506,14 +511,18 @@ const handleViewOrderSummary = () => {
               >
                 {isLoading ? "جاري الحفظ..." : "حفظ التعديلات"}
               </button>
-               <button
-    type="button"
-    onClick={handleViewOrderSummary}
-    className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded flex-1"
-    disabled={productsInOrder.length === 0 || !salespersonId || (selectedSalespersonType === 'ws_rep' && !customerId)}
-  >
-    ملخص الطلبية
-  </button>
+              <button
+                type="button"
+                onClick={handleViewOrderSummary}
+                className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded flex-1"
+                disabled={
+                  productsInOrder.length === 0 ||
+                  !salespersonId ||
+                  (selectedSalespersonType === "ws_rep" && !customerId)
+                }
+              >
+                ملخص الطلبية
+              </button>
             </div>
           </>
         )}
@@ -534,11 +543,10 @@ const handleViewOrderSummary = () => {
         allAvailableProducts={products}
       />
       <OrderSummaryModal
-  show={showOrderSummaryModal}
-  onClose={() => setShowOrderSummaryModal(false)}
-  orderSummary={currentOrderSummary}
-/>
-
+        show={showOrderSummaryModal}
+        onClose={() => setShowOrderSummaryModal(false)}
+        orderSummary={currentOrderSummary}
+      />
     </ModalWrapper>
   );
 }

@@ -6,16 +6,23 @@ import React from 'react';
  *
  * @param {object} props
  * @param {Array<object>} props.headers - مصفوفة من رؤوس الأعمدة. كل عنصر هو { key: string, label: string }.
- * `key` يجب أن يتطابق مع مفتاح الخاصية في كائنات `data`.
+ * key يجب أن يتطابق مع مفتاح الخاصية في كائنات data.
  * @param {Array<object>} props.data - مصفوفة من الكائنات لتمثل صفوف الجدول.
  * @param {boolean} props.loading - حالة التحميل.
  * @param {string|null} props.error - رسالة الخطأ (إن وجدت).
  * @param {number} props.totalCount - العدد الإجمالي للعناصر المفلترة (يستخدم لرسالة "لا توجد بيانات").
  * @param {function} props.renderRow - دالة تعيد JSX لكل صف من البيانات. تتلقى (item, index) كمعاملات.
- * هذه الدالة مسؤولة عن عرض خلايا `<td>` لصف معين.
- * @param {string} [props.rowKeyField='id'] - اسم المفتاح في كائنات البيانات الذي يجب استخدامه كمفتاح فريد لـ `<tr>`.
+ * @param {string} [props.rowKeyField='id'] - اسم المفتاح في كائنات البيانات الذي يجب استخدامه كمفتاح فريد لـ <tr>.
  */
-export default function Table({ headers, data, loading, error, totalCount, renderRow, rowKeyField = 'id' }) {
+export default function Table({
+  headers,
+  data,
+  loading,
+  error,
+  totalCount,
+  renderRow,
+  rowKeyField = 'id',
+}) {
   if (loading) {
     return <p className="text-center text-lg text-white">جاري تحميل البيانات...</p>;
   }
@@ -29,27 +36,32 @@ export default function Table({ headers, data, loading, error, totalCount, rende
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="amiriFont min-w-full text-white border-collapse">
-        <thead>
-          <tr className="accentColor text-white">
-            {headers.map((header) => (
-              <th key={header.key} className="py-3 px-4 text-right">
-                {header.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((item, index) => (
-            // استخدام item[rowKeyField] كمفتاح فريد للصف
-            <tr key={item[rowKeyField]} className="border-b border-gray-700">
-              {/* يتم استدعاء renderRow لتوليد محتوى كل صف */}
-              {renderRow(item, index)}
+    <div className="amiriFont min-w-full text-white flex flex-col">
+      <div className="overflow-x-auto">
+        <table className="min-w-full table-fixed">
+          <thead>
+            <tr className="accentColor text-white">
+              {headers.map((header) => (
+                <th key={header.key} className="py-3 px-4 text-right" style={{ width: '75%' }}>
+                  {header.label}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+        </table>
+      </div>
+
+      <div className="overflow-y-auto" style={{ height: '400px' }}>
+        <table className="min-w-full table-fixed">
+          <tbody>
+            {data.map((item, index) => (
+              <tr key={item[rowKeyField]} className="border-b border-gray-700" >
+                {renderRow(item, index)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

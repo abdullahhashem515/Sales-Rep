@@ -108,12 +108,15 @@ export default function ViewOrderModal({
                 </tr>
               </thead>
               <tbody>
-                {order.products.map((product, idx) => (
-                  <tr key={idx} className="border-b border-gray-700 last:border-b-0">
-                    <td className="py-2 pr-2">{product.name || `منتج ${product.product_id}`}</td>
-                    <td className="py-2">{product.quantity}</td>
-                  </tr>
-                ))}
+             {order.products.map((product, idx) => (
+  <tr key={idx} className="border-b border-gray-700 last:border-b-0">
+    <td className="py-2 pr-2">
+      {product.name || `منتج ${product.product_id}`}
+      {product.unit && ` ${product.unit}`}
+    </td>
+    <td className="py-2">{product.quantity}</td>
+  </tr>
+))}
               </tbody>
             </table>
           ) : (
