@@ -114,19 +114,5 @@ export const del = async (endpoint, token) => { // 'delete' is a reserved keywor
   }
 };
 
-// =========================================================
-// Specific API functions
-// =========================================================
 
-/**
- * دالة للتحقق من وجود رقم هاتف بالفعل في النظام.
- * @param {string} phoneNumber - رقم الهاتف المراد التحقق منه.
- * @param {string} token - رمز المصادقة (Bearer Token).
- * @returns {Promise<object>} - وعد بكائن يحتوي على { exists: true/false }
- * @throws {Error} - يرمي خطأ إذا فشل الطلب (بما في ذلك 401 Unauthorized أو 404 Not Found إذا لم يكن المسار موجودًا)
- */
-export const checkPhoneExistsApi = async (phoneNumber, token) => {
-  // افترض أن نقطة النهاية هي 'users/check-phone' وتتوقع بارامتر 'phone'
-  // تأكد من أن هذا المسار موجود في الواجهة الخلفية ومرئي للمستخدمين المصادق عليهم
-  return get('admin/users/check-phone', token, { phone: phoneNumber });
-};
+

@@ -40,6 +40,9 @@ export default function OrdersList() {
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [orderToEdit, setOrderToEdit] = useState(null); 
 
+
+
+
   // --- Fetch Users ---
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -61,49 +64,50 @@ export default function OrdersList() {
 const fetchOrders = async () => {
   setLoadingOrders(true);
   setErrorOrders(null);
-  
+
   try {
     if (!token) throw new Error("لا يوجد رمز مصادقة.");
 
     let wholesaleOrders = [];
     let retailOrders = [];
 
-    // جلب طلبات الجملة
+    // --- جلب طلبات الجملة ---
     try {
       const wholesaleRes = await get('admin/orders', token);
-      wholesaleOrders = Array.isArray(wholesaleRes) 
-        ? wholesaleRes.map(item => ({
+
+      wholesaleOrders = Array.isArray(wholesaleRes.data)
+        ? wholesaleRes.data.map(item => ({
             order_id: item.order_number,
             customer_id: item.customer?.name || `عميل ${item.customer_id}`,
             user_id: item.user_id?.toString(),
             order_date: item.order_date,
-            total: parseFloat(item.total_cost) || 0,
+            total: parseFloat(item.total_cost || 0),
             status: item.status,
             type: item.type,
-            currency_id: item.currency_id || 1,
             slug: item.slug || item.order_number,
             products: (item.items || []).map(p => ({
               product_id: p.product_id,
               name: p.name || `منتج ${p.product_id}`,
               quantity: p.quantity || 0,
               unit_price: parseFloat(p.unit_price || 0),
-              total: parseFloat(p.total || 0)
+              total: parseFloat(p.total || 0),
+              unit: p.unit || "",
             })),
             type_order: 'wholesale',
-            note: item.note || '',          // ← الحقل الجديد
-            status_note: item.status_note || '' // ← الحقل الجديد
-          }))
+            note: item.note || '',
+            status_note: item.status_note || ''
+        }))
         : [];
     } catch (wholesaleError) {
       console.error("Error fetching wholesale orders:", wholesaleError);
       toast.error('حدث خطأ في جلب طلبات الجملة: ' + (wholesaleError.message || ''));
     }
 
-    // جلب طلبات التجزئة
+    // --- جلب طلبات التجزئة ---
     try {
       const retailRes = await get('admin/shipment-requests', token);
 
-      retailOrders = Array.isArray(retailRes["shipment-Request"]) 
+      retailOrders = Array.isArray(retailRes["shipment-Request"])
         ? retailRes["shipment-Request"].map(item => ({
             order_id: item.shipment_number,
             customer_id: null,
@@ -119,11 +123,12 @@ const fetchOrders = async () => {
               name: p.name || `منتج ${p.product_id}`,
               quantity: p.quantity || 0,
               unit_price: parseFloat(p.unit_price || 0),
-              total: parseFloat(p.total_price || 0)
+              total: parseFloat(p.total_price || 0),
+              unit: p.unit || "",
             })),
             type_order: 'retail',
-            note: item.note || '',          // ← الحقل الجديد
-            status_note: item.status_note || '' // ← الحقل الجديد
+            note: item.note || '',
+            status_note: item.status_note || ''
           }))
         : [];
     } catch (retailError) {
@@ -135,8 +140,11 @@ const fetchOrders = async () => {
       }
     }
 
-    setOrders([...wholesaleOrders, ...retailOrders]);
-    
+   
+
+    // أخيراً ضع الطلبات في الـ state
+    setOrders({ wholesaleOrders, retailOrders });
+
   } catch (err) {
     console.error("General error in fetchOrders:", err);
     setErrorOrders(err.message || 'فشل في جلب الطلبات.');
@@ -147,6 +155,8 @@ const fetchOrders = async () => {
 };
 
 
+
+
   useEffect(() => {
     fetchUsers();
   }, [token]);
@@ -154,6 +164,8 @@ const fetchOrders = async () => {
   useEffect(() => {
     if (users.length > 0) fetchOrders();
   }, [users, token]);
+
+  
 
   // --- Helpers ---
   const getUserName = (id) => {
@@ -222,32 +234,43 @@ const statusFilterOptions = [
   { value: 'cancelled', label: 'ملغى' },
 ];
 
-  const filteredOrders = useMemo(() => {
-    let currentFilteredOrders = orders;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      currentFilteredOrders = currentFilteredOrders.filter(order => {
-        if (searchBy === 'order_id') return String(order.order_id).toLowerCase().includes(term);
-        if (searchBy === 'user_id') return getUserName(order.user_id).toLowerCase().includes(term);
-        if (searchBy === 'customer_id') return String(order.customer_id || '').toLowerCase().includes(term);
-        return false;
-      });
-    }
-    if (filterStatus !== 'all') {
-      currentFilteredOrders = currentFilteredOrders.filter(order => order.status === filterStatus);
-    }
-    if (dateRangeFilter.startDate || dateRangeFilter.endDate) {
-      currentFilteredOrders = currentFilteredOrders.filter(order => {
-        const orderDate = new Date(order.order_date);
-        const startDateObj = dateRangeFilter.startDate ? new Date(dateRangeFilter.startDate) : null;
-        const endDateObj = dateRangeFilter.endDate ? new Date(dateRangeFilter.endDate) : null;
-        if (startDateObj) startDateObj.setHours(0,0,0,0);
-        if (endDateObj) endDateObj.setHours(23,59,59,999);
-        return (!startDateObj || orderDate >= startDateObj) && (!endDateObj || orderDate <= endDateObj);
-      });
-    }
-    return currentFilteredOrders;
-  }, [orders, searchTerm, searchBy, filterStatus, dateRangeFilter]);
+const filteredOrders = useMemo(() => {
+  // دمج الطلبات الجملة + الشحنات التجزئة في مصفوفة واحدة
+  const allOrders = [...(orders.wholesaleOrders || []), ...(orders.retailOrders || [])];
+
+  let currentFilteredOrders = allOrders;
+
+  // فلترة حسب البحث
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    currentFilteredOrders = currentFilteredOrders.filter(order => {
+      if (searchBy === 'order_id') return String(order.order_id).toLowerCase().includes(term);
+      if (searchBy === 'user_id') return getUserName(order.user_id).toLowerCase().includes(term);
+      if (searchBy === 'customer_id') return String(order.customer_id || '').toLowerCase().includes(term);
+      return false;
+    });
+  }
+
+  // فلترة حسب الحالة
+  if (filterStatus !== 'all') {
+    currentFilteredOrders = currentFilteredOrders.filter(order => order.status === filterStatus);
+  }
+
+  // فلترة حسب التاريخ
+  if (dateRangeFilter.startDate || dateRangeFilter.endDate) {
+    currentFilteredOrders = currentFilteredOrders.filter(order => {
+      const orderDate = new Date(order.order_date);
+      const startDateObj = dateRangeFilter.startDate ? new Date(dateRangeFilter.startDate) : null;
+      const endDateObj = dateRangeFilter.endDate ? new Date(dateRangeFilter.endDate) : null;
+      if (startDateObj) startDateObj.setHours(0,0,0,0);
+      if (endDateObj) endDateObj.setHours(23,59,59,999);
+      return (!startDateObj || orderDate >= startDateObj) && (!endDateObj || orderDate <= endDateObj);
+    });
+  }
+
+  return currentFilteredOrders;
+}, [orders, searchTerm, searchBy, filterStatus, dateRangeFilter]);
+
 
   const getStatusLabel = (status) => {
   switch(status) {
@@ -266,6 +289,15 @@ const getStatusColorClass = (status) => {
     default: return 'bg-gray-500';
   }
 };
+
+const filteredWholesaleOrders = useMemo(() => {
+  return filteredOrders.filter(order => order.type_order === 'wholesale');
+}, [filteredOrders]);
+
+const filteredRetailOrders = useMemo(() => {
+  return filteredOrders.filter(order => order.type_order === 'retail');
+}, [filteredOrders]);
+
 
   return (
     <MainLayout>
@@ -313,70 +345,78 @@ const getStatusColorClass = (status) => {
           </div>
         </div>
 
-        <div className="mt-8 mb-4">
-          <h3 className="amiriFont text-xl font-bold mb-4">قائمة الطلبات</h3>
-          <div className="max-h-[70vh] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2"> 
-            {loadingOrders || loadingUsers ? (
-              <p className="text-center text-lg">جاري تحميل الطلبات...</p>
-            ) : errorOrders ? (
-              <p className="text-center text-red-500 text-lg">خطأ: {errorOrders}</p>
-            ) : filteredOrders.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> 
-                {filteredOrders.map(order => (
-                  <div key={order.order_id} className="bg-gray-800 p-5 rounded-lg shadow-md flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-lg font-bold text-accentColor">طلب رقم: {order.order_id}</h4>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getStatusColorClass(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </div>
-                      {order.customer_id && (
-                        <p className="text-gray-300 text-sm mb-1">
-                          <span className="font-semibold">العميل:</span> {order.customer_id}
-                        </p>
-                      )}
-                      <p className="text-gray-300 text-sm mb-1">
-                        <span className="font-semibold">المندوب:</span> {getUserName(order.user_id)}
-                      </p>
-                      <p className="text-gray-300 text-sm mb-1">
-                        <span className="font-semibold">تاريخ الطلب:</span> {new Date(order.order_date).toLocaleDateString('en-GB')}
-                      </p>
-                      <p className="text-gray-300 text-sm mb-3">
-                        <span className="font-semibold">الإجمالي:</span> {order.total.toFixed(2)} 
-                      </p>
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                      <button
-                        className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full"
-                        onClick={() => handleViewOrderClick(order)}
-                        title="عرض التفاصيل"
-                      >
-                        <EyeIcon className="w-5 h-5 text-white" />
-                      </button>
-                      <button
-                        className="bg-yellow-500 hover:bg-yellow-600 p-2 rounded-full"
-                        onClick={() => handleEditOrderClick(order)}
-                        title="تعديل الطلب"
-                      >
-                        <PencilIcon className="w-5 h-5 text-white" />
-                      </button>
-                      <button
-                        className="bg-red-500 hover:bg-red-600 p-2 rounded-full"
-                        onClick={() => handleDeleteOrderClick(order)}
-                        title="حذف الطلب"
-                      >
-                        <TrashIcon className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="amiriFont text-center text-lg col-span-full">لا توجد طلبات مطابقة لنتائج البحث.</p>
-            )}
-          </div>
-        </div>
+ <div className="mt-8 mb-4">
+  <h3 className="amiriFont text-xl font-bold mb-4">طلبات الجملة</h3>
+  <div className="max-h-[70vh] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2">
+    {loadingOrders ? (
+      <p className="text-center text-lg">جاري تحميل طلبات الجملة...</p>
+    ) : orders.wholesaleOrders.length > 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredWholesaleOrders.map(order => (
+  <div key={order.order_id} className="bg-gray-800 p-5 rounded-lg shadow-md flex flex-col justify-between">
+    <div>
+      <h4 className="text-lg font-bold text-accentColor">طلب رقم: {order.order_id}</h4>
+      <p>العميل: {order.customer_id || '-'}</p>
+      <p>المندوب: {getUserName(order.user_id)}</p>
+      <p>التاريخ: {new Date(order.order_date).toLocaleDateString()}</p>
+      <p>الحالة: <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getStatusColorClass(order.status)}`}>{getStatusLabel(order.status)}</span></p>
+    </div>
+    <div className="flex justify-end gap-2 mt-4">
+      <button onClick={() => handleViewOrderClick(order)} className="bg-blue-500 p-2 rounded-full hover:bg-blue-600">
+        <EyeIcon className="w-5 h-5 text-white" />
+      </button>
+      <button onClick={() => handleEditOrderClick(order)} className="bg-yellow-500 p-2 rounded-full hover:bg-yellow-600">
+        <PencilIcon className="w-5 h-5 text-white" />
+      </button>
+      <button onClick={() => handleDeleteOrderClick(order)} className="bg-red-500 p-2 rounded-full hover:bg-red-600">
+        <TrashIcon className="w-5 h-5 text-white" />
+      </button>
+    </div>
+  </div>
+))}
+
+      </div>
+    ) : (
+      <p className="amiriFont text-center text-lg">لا توجد طلبات جملة.</p>
+    )}
+  </div>
+</div>
+
+{/* شحنات التجزئة */}
+<div className="mt-8 mb-4">
+  <h3 className="amiriFont text-xl font-bold mb-4">شحنات التجزئة</h3>
+  <div className="max-h-[70vh] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2">
+    {loadingOrders ? (
+      <p className="text-center text-lg">جاري تحميل شحنات التجزئة...</p>
+    ) : orders.retailOrders.length > 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredRetailOrders.map(order => (
+  <div key={order.order_id} className="bg-gray-800 p-5 rounded-lg shadow-md flex flex-col justify-between">
+    <div>
+      <h4 className="text-lg font-bold text-accentColor">شحنة رقم: {order.order_id}</h4>
+      <p>المندوب: {getUserName(order.user_id)}</p>
+      <p>التاريخ: {new Date(order.order_date).toLocaleDateString()}</p>
+      <p>الحالة: <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${getStatusColorClass(order.status)}`}>{getStatusLabel(order.status)}</span></p>
+    </div>
+    <div className="flex justify-end gap-2 mt-4">
+      <button onClick={() => handleViewOrderClick(order)} className="bg-blue-500 p-2 rounded-full hover:bg-blue-600">
+        <EyeIcon className="w-5 h-5 text-white" />
+      </button>
+      <button onClick={() => handleEditOrderClick(order)} className="bg-yellow-500 p-2 rounded-full hover:bg-yellow-600">
+        <PencilIcon className="w-5 h-5 text-white" />
+      </button>
+      <button onClick={() => handleDeleteOrderClick(order)} className="bg-red-500 p-2 rounded-full hover:bg-red-600">
+        <TrashIcon className="w-5 h-5 text-white" />
+      </button>
+    </div>
+  </div>
+))}
+      </div>
+    ) : (
+      <p className="amiriFont text-center text-lg">لا توجد شحنات تجزئة.</p>
+    )}
+  </div>
+</div>
       </div>
 
       {/* Modals */}
@@ -385,14 +425,9 @@ const getStatusColorClass = (status) => {
   show={showViewOrderModal}
   onClose={handleOrderModalClose}
   order={orderToView}
-  onUpdateOrderStatus={(updatedOrder) => {
-    setOrders(prevOrders =>
-      prevOrders.map(o =>
-        o.order_id === updatedOrder.order_id ? updatedOrder : o
-      )
-    );
-  }}
-/>      <UpdateOrderModal show={showUpdateOrderModal} onClose={handleOrderModalClose} orderToEdit={orderToEdit} />
+  onUpdateOrderStatus={() => fetchOrders()}
+/>
+    <UpdateOrderModal show={showUpdateOrderModal} onClose={handleOrderModalClose} orderToEdit={orderToEdit} />
       <ConfirmDeleteModal
         show={showDeleteOrderModal}
         onClose={() => handleOrderModalClose(false)}

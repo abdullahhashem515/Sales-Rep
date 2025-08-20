@@ -5,6 +5,8 @@ import FormSelectField from "../../components/shared/FormSelectField";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { toast } from 'react-toastify'; 
 import { post, put, get } from '../../utils/apiService';
+import SearchableSelectField from "../../components/shared/SearchableSelectField";
+
 
 /**
  * مكون مودال موحد لإضافة أو تعديل بيانات عميل.
@@ -47,7 +49,7 @@ export default function AddUpdateCustomerModal({ show, onClose, customerToEdit }
             label: `${user.name} (${user.type_user === 'ws_rep' ? 'مندوب جملة' : 'مندوب تجزئة'})`,
             value: user.id 
           }));
-        setRepresentatives([{ label: 'اختر مندوب', value: '' }, ...reps]); 
+setRepresentatives(reps);
       } catch (err) {
         console.error("Failed to fetch representatives:", err);
         toast.error('فشل في جلب قائمة المندوبين.');
@@ -450,13 +452,16 @@ export default function AddUpdateCustomerModal({ show, onClose, customerToEdit }
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormSelectField
-            label="تابع للمندوب"
-            value={representativeId}
-            onChange={(e) => setRepresentativeId(e.target.value)}
-            options={representatives}
-            error={errors.user_id} // Error for user_id
-          />
+     <SearchableSelectField
+  label="تابع للمندوب"
+  value={representativeId}
+  onChange={(val) => setRepresentativeId(val)}
+  options={representatives}
+  placeholder="اختر مندوب..."
+  error={errors.user_id}
+/>
+
+
           <FormInputField
             label="الدولة"
             type="text"

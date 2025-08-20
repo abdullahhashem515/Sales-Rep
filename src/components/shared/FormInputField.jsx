@@ -18,7 +18,7 @@ export default function FormInputField({ label, type, placeholder, value, onChan
       <input
         type={type}
         placeholder={placeholder}
-        className={`w-full p-2 rounded bg-gray-800 border ${error ? 'border-red-500' : 'border-gray-600'}`}
+        className={`w-full h-9.5 p-2 rounded bg-gray-800 border ${error ? 'border-red-500' : 'border-gray-600'}`}
         value={value}
         onChange={onChange}
       />

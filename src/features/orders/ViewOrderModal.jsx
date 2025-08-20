@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import UpdateOrderStatusWithNoteModal from "./UpdateOrderStatusWithNoteModal";
-import { get } from "../../utils/apiService";
 import { AuthContext } from "../../contexts/AuthContext";
 import { toast } from 'react-toastify';
 
@@ -15,32 +14,10 @@ export default function ViewOrderModal({
   const [isVisible, setIsVisible] = useState(false);
   const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [statusToUpdate, setStatusToUpdate] = useState(null);
-  const [currencies, setCurrencies] = useState([]);
 
   useEffect(() => {
     setIsVisible(show);
   }, [show]);
-
-  // جلب العملات
-  const fetchCurrencies = async () => {
-    if (!token) return;
-    try {
-      const res = await get("admin/currencies", token);
-      if (Array.isArray(res)) setCurrencies(res);
-      else console.error("تنسيق استجابة العملات غير متوقع");
-    } catch (err) {
-      console.error("فشل جلب العملات:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchCurrencies();
-  }, [token]);
-
-  // الحصول على رمز العملة
-  const getCurrencyCodeById = (id) => {
-    return currencies.find((c) => c.id === id)?.code || "-";
-  };
 
   // فتح نافذة تحديث الحالة
   const handleOpenUpdateStatusModal = (status) => {
@@ -49,31 +26,26 @@ export default function ViewOrderModal({
   };
 
   // إغلاق نافذة تحديث الحالة
-const handleCloseUpdateStatusModal = (isSuccess, updatedOrder) => {
-  setShowUpdateStatusModal(false);
-  setStatusToUpdate(null);
+  const handleCloseUpdateStatusModal = (isSuccess, updatedOrder) => {
+    setShowUpdateStatusModal(false);
+    setStatusToUpdate(null);
 
-  if (isSuccess && updatedOrder) {
-    if (onUpdateOrderStatus) {
-      onUpdateOrderStatus(updatedOrder); // تحديث الطلب في القائمة
-      toast.success(`تم تحديث حالة الطلب بنجاح`);
+    if (isSuccess && updatedOrder) {
+      if (onUpdateOrderStatus) {
+        onUpdateOrderStatus(updatedOrder); // تحديث الطلب في القائمة
+        toast.success(`تم تحديث حالة الطلب بنجاح`);
+      }
+      // اغلاق نافذة تفاصيل الطلب بعد التحديث
+      onClose(true); 
     }
-    // اغلاق نافذة تفاصيل الطلب بعد التحديث
-    onClose(true); 
-  }
-};
-
-
+  };
 
   if (!show || !order) return null;
 
   // تحضير البيانات للعرض
   const customerName = order.customer_name || order.customer_id || "-";
   const salespersonName = order.salesperson_name || order.user_id || "-";
-const totalAmount = order.products?.reduce(
-  (sum, p) => sum + (parseFloat(p.total) || 0),
-  0
-) || 0;
+
   // تحديد لون ونص الحالة
   const getStatusDetails = (status) => {
     switch(status) {
@@ -110,8 +82,7 @@ const totalAmount = order.products?.reduce(
             {customerName}
           </p>
           <p>
-            <span className="font-semibold text-gray-300">نوع الدفع:</span>{" "}
-            {order.type === "cash" ? "نقدي" : "آجل"}
+            <span className="font-semibold text-gray-300">المندوب:</span> {salespersonName}
           </p>
           <p>
             <span className="font-semibold text-gray-300">الحالة:</span>{" "}
@@ -120,14 +91,9 @@ const totalAmount = order.products?.reduce(
             </span>
           </p>
           <p>
-            <span className="font-semibold text-gray-300">العملة:</span>{" "}
-            {getCurrencyCodeById(order.currency_id)}
-          </p>
-          <p>
             <span className="font-semibold text-gray-300">نوع الطلب:</span>{" "}
             {order.type_order === 'wholesale' ? 'جملة' : 'تجزئة'}
           </p>
-          
         </div>
 
         {/* المنتجات */}
@@ -139,8 +105,6 @@ const totalAmount = order.products?.reduce(
                 <tr className="border-b border-gray-600">
                   <th className="py-2 pr-2 font-semibold text-gray-300">المنتج</th>
                   <th className="py-2 font-semibold text-gray-300">الكمية</th>
-                  <th className="py-2 font-semibold text-gray-300">سعر الوحدة</th>
-                  <th className="py-2 pl-2 font-semibold text-gray-300">الإجمالي</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,8 +112,6 @@ const totalAmount = order.products?.reduce(
                   <tr key={idx} className="border-b border-gray-700 last:border-b-0">
                     <td className="py-2 pr-2">{product.name || `منتج ${product.product_id}`}</td>
                     <td className="py-2">{product.quantity}</td>
-                    <td className="py-2">{parseFloat(product.unit_price).toFixed(2)}</td>
-                    <td className="py-2 pl-2 font-semibold">{parseFloat(product.total).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -159,79 +121,64 @@ const totalAmount = order.products?.reduce(
           )}
         </div>
 
-        {/* الإجمالي */}
-        <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 mt-2 text-left">
-          <p className="text-xl font-bold text-accentColor">
-            <span className="font-semibold">الإجمالي الكلي:</span>{" "}
-            {totalAmount.toFixed(2)} {getCurrencyCodeById(order.currency_id)}
-          </p>
-        </div>
-
         {/* الملاحظات والإجراءات */}
-  {/* الملاحظات والإجراءات */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          {order.note && (
+            <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
+              <h3 className="text-xl font-bold text-accentColor mb-2">ملاحظة عند إنشاء الطلب:</h3>
+              <p className="text-gray-300">{order.note}</p>
+            </div>
+          )}
 
-{console.log("يقاقااياياياقياقياقيا", order)}
+          {/* أزرار قبول/رفض الطلب إذا الحالة معلق */}
+          {order.status === 'pending' && (
+            <div className="flex justify-left gap-3">
+              <button
+                type="button"
+                onClick={() => handleOpenUpdateStatusModal("accepted")}
+                className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center gap-1"
+              >
+                قبول الطلب
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenUpdateStatusModal("cancelled")}
+                className="bg-red-500 hover:bg-red-600 py-2 px-4 rounded flex items-center gap-1"
+              >
+                إلغاء الطلب
+              </button>
+            </div>
+          )}
 
-  {order.note && (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
-      <h3 className="text-xl font-bold text-accentColor mb-2">ملاحظة عند إنشاء الطلب:</h3>
-      <p className="text-gray-300">{order.note}</p>
-    </div>
-  )}
-
-  {/* أزرار قبول/رفض الطلب إذا الحالة معلق */}
-  {order.status === 'pending' && (
-    <div className="flex justify-left gap-3">
-      <button
-        type="button"
-        onClick={() => handleOpenUpdateStatusModal("accepted")}
-        className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center gap-1"
-      >
-        قبول الطلب
-      </button>
-      <button
-        type="button"
-        onClick={() => handleOpenUpdateStatusModal("cancelled")}
-        className="bg-red-500 hover:bg-red-600 py-2 px-4 rounded flex items-center gap-1"
-      >
-        إلغاء الطلب
-      </button>
-    </div>
-  )}
-
-  {/* ملاحظة الحالة بعد قبول أو رفض الطلب */}
-  {order.status !== 'pending' && order.status_note && (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 text-sm">
-      <h3 className="font-semibold text-accentColor mb-1">ملاحظة حالة الطلب:</h3>
-      <p>{order.status_note}</p>
-    </div>
-  )}
-</div>
-</div>
-
-      
+          {/* ملاحظة الحالة بعد قبول أو رفض الطلب */}
+          {order.status !== 'pending' && order.status_note && (
+            <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 text-sm">
+              <h3 className="font-semibold text-accentColor mb-1">ملاحظة حالة الطلب:</h3>
+              <p>{order.status_note}</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* نافذة تحديث الحالة */}
- {/* نافذة تحديث الحالة */}
-{showUpdateStatusModal && (
-<UpdateOrderStatusWithNoteModal
-  show={showUpdateStatusModal}
-  onClose={handleCloseUpdateStatusModal}
-  order={order}
-  newStatus={statusToUpdate}
-  onUpdateSuccess={(orderId, updatedStatus, notes, userId, timestamp) => {
-    const updatedOrder = {
-      ...order,
-      status: updatedStatus,
-      status_note: notes,
-      processed_at: timestamp,
-      salesperson_name: "مندوب 1", // أو القيمة الحقيقية
-    };
-    handleCloseUpdateStatusModal(true, updatedOrder);
-  }}
-/>
-)}
+      {showUpdateStatusModal && (
+        <UpdateOrderStatusWithNoteModal
+          show={showUpdateStatusModal}
+          onClose={handleCloseUpdateStatusModal}
+          order={order}
+          newStatus={statusToUpdate}
+          onUpdateSuccess={(orderId, updatedStatus, notes, userId, timestamp) => {
+            const updatedOrder = {
+              ...order,
+              status: updatedStatus,
+              status_note: notes,
+              processed_at: timestamp,
+              salesperson_name: "مندوب 1", // أو القيمة الحقيقية
+            };
+            handleCloseUpdateStatusModal(true, updatedOrder);
+          }}
+        />
+      )}
     </ModalWrapper>
   );
 };
