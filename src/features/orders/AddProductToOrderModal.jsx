@@ -1,7 +1,8 @@
+// src/pages/orders/AddProductToOrderModal.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import FormInputField from "../../components/shared/FormInputField";
-import SearchableSelectField from "../../components/shared/SearchableSelectField";
+import SearchableSelectFieldV3 from "../../components/shared/SearchableSelectFieldV3";
 import { toast } from "react-toastify";
 
 export default function AddProductToOrderModal({
@@ -34,7 +35,7 @@ export default function AddProductToOrderModal({
       value: p.id,
       label: `${p.name} ${p.unit}`,
       unit: p.unit,
-      name: p.name
+      name: p.name,
     }));
   }, [availableProducts]);
 
@@ -56,14 +57,16 @@ export default function AddProductToOrderModal({
 
     const qty = parseInt(quantity);
 
+    // ✅ هنا ضمنا أن الاسم يجي سواء من name أو label
     const newProductInOrder = {
       product_id: selectedProduct.value,
-      name: selectedProduct.name,
+      name: selectedProduct.name || selectedProduct.label,
       unit: selectedProduct.unit,
       quantity: qty,
     };
 
     onAddProductConfirm(newProductInOrder);
+    toast.success(`تم إضافة المنتج "${newProductInOrder.name}" بنجاح!`);
     onClose();
   };
 
@@ -77,17 +80,17 @@ export default function AddProductToOrderModal({
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 text-right">
         {/* Product Search/Select */}
-        <SearchableSelectField
-          label="المنتج"
-          value={selectedProduct ? selectedProduct.value : ""}
-          onChange={(id) => {
-            const product = productOptions.find(p => p.value === id);
-            setSelectedProduct(product || null);
-          }}
-          options={productOptions}
-          error={error && error.includes("منتج") ? error : null}
-          placeholder="ابحث أو اختر منتج..."
-        />
+      <SearchableSelectFieldV3
+  label="المنتج"
+  value={selectedProduct}
+  onChange={(option) => {
+    setSelectedProduct(option || null);
+  }}
+  options={productOptions}
+  error={error && error.includes("منتج") ? error : null}
+  placeholder="ابحث أو اختر منتج..."
+/>
+
 
         {/* Quantity */}
         <FormInputField

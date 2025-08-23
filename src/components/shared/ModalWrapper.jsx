@@ -39,7 +39,7 @@ export default function ModalWrapper({
 
         <button
           onClick={onClose}
-          className="absolute top-2 left-2 text-gray-400 hover:text-white"
+          className="absolute top-2 left-2 text-gray-400 hover:text-white print:hidden"
         >
           ✕
         </button>

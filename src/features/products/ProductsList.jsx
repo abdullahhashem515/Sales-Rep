@@ -11,7 +11,7 @@ import AddProductModal from "../../features/products/AddProductModal";
 import ProductItem from "../../features/products/ProductItem"; 
 import UpdateCategoryModal from "../../features/products/UpdateCategoryModal"; 
 import UpdateCurrencyModal from "../../features/products/UpdateCurrencyModal"; 
-import UpdateProductModal from "../../features/products/UpdateProductModal"; // NEW: Import UpdateProductModal
+import UpdateProductModal from "../../features/products/UpdateProductModal"; 
 import ConfirmDeleteModal from "../../components/shared/ConfirmDeleteModal"; 
 
 import { get, del } from '../../utils/apiService'; 
@@ -39,16 +39,19 @@ export default function ProductsList() {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [errorCategories, setErrorCategories] = useState(null);
+  const [deletingCategory, setDeletingCategory] = useState(false); // NEW: حالة التحميل للحذف
 
   // Products data fetched from API
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [errorProducts, setErrorProducts] = useState(null);
+  const [deletingProduct, setDeletingProduct] = useState(false); // NEW: حالة التحميل للحذف
   
   // States for Currencies data fetched from API
-  const [currencies, setCurrencies] = useState([]); // This will now store objects {id, code, name}
+  const [currencies, setCurrencies] = useState([]); 
   const [loadingCurrencies, setLoadingCurrencies] = useState(true);
   const [errorCurrencies, setErrorCurrencies] = useState(null);
+  const [deletingCurrency, setDeletingCurrency] = useState(false); // NEW: حالة التحميل للحذف
 
   // States for Update Currency Modal
   const [showUpdateCurrencyModal, setShowUpdateCurrencyModal] = useState(false);
@@ -67,7 +70,7 @@ export default function ProductsList() {
 
   // Pagination states for products
   const [currentPageProducts, setCurrentPageProducts] = useState(1);
-  const productsPerPage = 4; // Number of products to display per page
+  const productsPerPage = 4; 
 
   // --- Fetch Categories from API ---
   const fetchCategories = async () => {
@@ -132,7 +135,6 @@ export default function ProductsList() {
       }
       const response = await get('admin/currencies', token);
       console.log("Currencies API Response:", response);
-      // Filter and ensure currencies are stored as objects with 'id' and 'code'
       const fetchedCurrencies = Array.isArray(response) ? response : response.currencies || response.data || [];
       setCurrencies(fetchedCurrencies.filter(c => c && typeof c === 'object' && c.id && c.code));
 
@@ -165,9 +167,9 @@ export default function ProductsList() {
   };
 
   const handleAddProductClick = () => setShowAddProductModal(true);
-  const handleConfirmAddProduct = (isSuccess) => { // Updated to accept isSuccess
+  const handleConfirmAddProduct = (isSuccess) => {
     setShowAddProductModal(false);
-    if (isSuccess) fetchProducts(); // Only re-fetch if successful
+    if (isSuccess) fetchProducts();
   };
 
   // Centralized handler for category modal closures
@@ -176,10 +178,9 @@ export default function ProductsList() {
     setShowUpdateCategoryModal(false);
     setShowDeleteCategoryModal(false);
     if (isSuccess) {
-      // ✅ NEW: Add a small delay before refetching categories
       setTimeout(() => {
         fetchCategories(); 
-      }, 500); // Increased delay
+      }, 500);
     }
     setCategoryToEdit(null); 
     setCategoryToDelete(null); 
@@ -191,29 +192,26 @@ export default function ProductsList() {
     setShowUpdateCurrencyModal(false);
     setShowDeleteCurrencyModal(false);
     if (isSuccess) {
-      // ✅ NEW: Add a small delay before refetching currencies
       setTimeout(() => {
         fetchCurrencies(); 
-      }, 500); // Increased delay
+      }, 500); 
     }
     setCurrencyToEdit(null); 
     setCurrencyToDelete(null); 
   };
 
-  // NEW: Centralized handler for product modal closures
-  // Now accepts an optional refetch function
+  // Centralized handler for product modal closures
   const handleProductModalClose = (refetch = false) => {
     setShowAddProductModal(false);
     setShowUpdateProductModal(false);
     setShowDeleteProductModal(false);
     if (refetch) {
-      // ✅ NEW: Add a small delay before refetching products
       setTimeout(() => {
-        fetchProducts(); // Re-fetch products to update the list
-      }, 500); // Increased delay
+        fetchProducts(); 
+      }, 500); 
     }
-    setProductToEdit(null); // Clear product being edited
-    setProductToDelete(null); // Clear product being deleted
+    setProductToEdit(null); 
+    setProductToDelete(null);
   };
 
   // --- Category Edit/Delete Handlers ---
@@ -230,39 +228,33 @@ export default function ProductsList() {
   const handleConfirmDeleteCategory = async () => {
     if (!categoryToDelete) return;
 
-    setLoadingCategories(true);
+    setDeletingCategory(true); // NEW: بدء حالة التحميل للحذف
     try {
       const token = localStorage.getItem('userToken');
       if (!token) {
         toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-        setLoadingCategories(false);
         return;
       }
 
       const response = await del(`admin/categories/${categoryToDelete.slug}`, token);
 
-      // ✅ NEW: Log the full API response for debugging
       console.log("Delete Category API Response (full):", response);
 
-      // ✅ NEW: Check for success based on response existing (2xx status from axios)
       if (response) {
-        toast.success('تم حذف الفئة بنجاح!'); // ✅ Ensure this is always in Arabic
-        // ✅ NEW: Optimistically remove category from local state
+        toast.success('تم حذف الفئة بنجاح!');
         setCategories(prevCategories => prevCategories.filter(cat => cat.slug !== categoryToDelete.slug));
-        handleCategoryModalClose(true); // This will trigger the delayed fetch
+        handleCategoryModalClose(true);
       } else {
-        // This else block handles cases where response is null/undefined but no error was thrown
         toast.error('فشل حذف الفئة: استجابة غير متوقعة من الخادم.');
         handleCategoryModalClose(false);
       }
     } catch (err) {
-      // This catch block handles errors thrown by `del` (i.e., non-2xx HTTP status from backend)
       console.error("Error deleting category:", err);
-      const errorMessage = err.message || 'فشل في حذف الفئة: خطأ غير معروف.'; // Fallback to generic Arabic message
+      const errorMessage = err.message || 'فشل في حذف الفئة: خطأ غير معروف.';
       toast.error(errorMessage);
       handleCategoryModalClose(false);
     } finally {
-      setLoadingCategories(false);
+      setDeletingCategory(false); // NEW: إنهاء حالة التحميل
     }
   };
 
@@ -280,45 +272,39 @@ export default function ProductsList() {
   const handleConfirmDeleteCurrency = async () => {
     if (!currencyToDelete) return;
 
-    setLoadingCurrencies(true);
+    setDeletingCurrency(true); // NEW: بدء حالة التحميل للحذف
     try {
       const token = localStorage.getItem('userToken');
       if (!token) {
         toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-        setLoadingCurrencies(false);
         return;
       }
 
       const response = await del(`admin/currencies/${currencyToDelete.slug}`, token);
 
-      // ✅ NEW: Log the full API response for debugging
       console.log("Delete Currency API Response (full):", response);
 
-      // ✅ NEW: Check for success based on response existing (2xx status from axios)
       if (response) {
-        toast.success('تم حذف العملة بنجاح!'); // ✅ Ensure this is always in Arabic
-        // ✅ NEW: Optimistically remove currency from local state
+        toast.success('تم حذف العملة بنجاح!');
         setCurrencies(prevCurrencies => prevCurrencies.filter(curr => curr.slug !== currencyToDelete.slug));
         handleCurrencyModalClose(true); 
       } else {
-        // This else block handles cases where response is null/undefined but no error was thrown
         toast.error('فشل حذف العملة: استجابة غير متوقعة من الخادم.');
         handleCurrencyModalClose(false);
       }
     } catch (err) {
-      // This catch block handles errors thrown by `del` (i.e., non-2xx HTTP status from backend)
       console.error("Error deleting currency:", err);
-      const errorMessage = err.message || 'فشل في حذف العملة: خطأ غير معروف.'; // Fallback to generic Arabic message
+      const errorMessage = err.message || 'فشل في حذف العملة: خطأ غير معروف.';
       toast.error(errorMessage);
       handleCurrencyModalClose(false);
     } finally {
-      setLoadingCurrencies(false);
+      setDeletingCurrency(false); // NEW: إنهاء حالة التحميل
     }
   };
 
 
   // NEW: Product Delete Handler
-  const handleDeleteProduct = (product) => { // Accept full product object
+  const handleDeleteProduct = (product) => {
     setProductToDelete(product);
     setShowDeleteProductModal(true);
   };
@@ -328,50 +314,41 @@ export default function ProductsList() {
       toast.error('لا يوجد منتج للحذف.');
       return;
     }
-    // ✅ ADDED: Check if productToDelete.slug exists before attempting deletion
     if (!productToDelete.slug) {
       toast.error('معرف المنتج (Slug) مفقود. لا يمكن حذف المنتج.');
       console.error("Deletion Error: Product slug is missing for product:", productToDelete);
-      setShowDeleteProductModal(false); // Close the modal as there's no slug to delete
-      setProductToDelete(null); // Clear the productToDelete state
+      setShowDeleteProductModal(false);
+      setProductToDelete(null);
       return;
     }
 
-    setLoadingProducts(true);
+    setDeletingProduct(true); // NEW: بدء حالة التحميل للحذف
     try {
       const token = localStorage.getItem('userToken');
       if (!token) {
         toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-        setLoadingProducts(false);
         return;
       }
 
-      // Use product.slug for deletion
       const response = await del(`admin/products/${productToDelete.slug}`, token);
 
-      // ✅ NEW: Log the full API response for debugging
       console.log("Delete Product API Response (full):", response);
 
-      // ✅ NEW: Check for success based on response existing (2xx status from axios)
-      if (response) { 
-        toast.success('تم حذف المنتج بنجاح!'); // ✅ Ensure this is always in Arabic
-        // ✅ NEW: Optimistically remove product from local state
+      if (response) {
+        toast.success('تم حذف المنتج بنجاح!');
         setProducts(prevProducts => prevProducts.filter(p => p.slug !== productToDelete.slug));
-        // ✅ NEW: Call handleProductModalClose with true to trigger delayed fetchProducts
         handleProductModalClose(true); 
       } else {
-        // This else block handles cases where response is null/undefined but no error was thrown
         toast.error('فشل حذف المنتج: استجابة غير متوقعة من الخادم.');
         handleProductModalClose(false);
       }
     } catch (err) {
-      // This catch block handles errors thrown by `del` (i.e., non-2xx HTTP status from backend)
       console.error("Error deleting product:", err);
-      const errorMessage = err.message || 'فشل في حذف المنتج: خطأ غير معروف.'; // Fallback to generic Arabic message
+      const errorMessage = err.message || 'فشل في حذف المنتج: خطأ غير معروف.';
       toast.error(errorMessage);
       handleProductModalClose(false);
     } finally {
-      setLoadingProducts(false);
+      setDeletingProduct(false); // NEW: إنهاء حالة التحميل
     }
   };
 
@@ -383,7 +360,7 @@ export default function ProductsList() {
 
 
   // --- Filtering Logic for Categories ---
-  const searchOptionsCategories = [ // Renamed to avoid confusion
+  const searchOptionsCategories = [ 
     { value: 'name', label: 'اسم الفئة' },
   ];
 
@@ -401,7 +378,6 @@ export default function ProductsList() {
   const [searchByProducts, setSearchByProducts] = useState('name');
   const searchOptionsProducts = [
     { value: 'name', label: 'اسم المنتج' },
-    // REMOVED: { value: 'slug', label: 'معرف المنتج (Slug)' }, 
     { value: 'category', label: 'الفئة' },
   ];
 
@@ -417,10 +393,9 @@ export default function ProductsList() {
       if (searchByProducts === 'name') {
         return product.name?.toLowerCase().includes(lowerCaseSearchTerm);
       } else if (searchByProducts === 'category') {
-        // CORRECTED: Ensure product.category?.name exists and is used for filtering
         return product.category?.name?.toLowerCase().includes(lowerCaseSearchTerm); 
       }
-      return true; // If searchByProducts is none of the valid options, include all products
+      return true;
     });
   }, [products, searchTermProducts, searchByProducts, loadingProducts]);
 
@@ -463,7 +438,7 @@ export default function ProductsList() {
             setSearchTerm={setSearchTerm}
             searchBy={searchBy}
             setSearchBy={setSearchBy}
-            options={searchOptionsCategories} // Use searchOptionsCategories
+            options={searchOptionsCategories} 
             placeholder="بحث عن فئة"
           />
         </div>
@@ -577,7 +552,7 @@ export default function ProductsList() {
             setSearchTerm={setSearchTermProducts}
             searchBy={searchByProducts}
             setSearchBy={setSearchByProducts}
-            options={searchOptionsProducts} // UPDATED: Use the new search options
+            options={searchOptionsProducts} 
             placeholder="بحث عن منتج"
           />
         </div>
@@ -595,9 +570,9 @@ export default function ProductsList() {
                     <ProductItem 
                       key={product.slug || product.id} 
                       product={product} 
-                      onEdit={handleEditProduct} // Pass the full product object
-                      onDelete={() => handleDeleteProduct(product)} // Pass the full product object for deletion
-                      availableCurrencies={currencies} // ✅ NEW: Pass full currencies to ProductItem
+                      onEdit={handleEditProduct} 
+                      onDelete={() => handleDeleteProduct(product)} 
+                      availableCurrencies={currencies}
                     />
                   ))}
                 </div>
@@ -649,6 +624,7 @@ export default function ProductsList() {
         show={showDeleteCategoryModal}
         onClose={() => handleCategoryModalClose(false)} 
         onConfirm={handleConfirmDeleteCategory} 
+        loading={deletingCategory} // NEW: تمرير حالة التحميل
         title="تأكيد حذف الفئة"
         message={`هل أنت متأكد أنك تريد حذف الفئة "${categoryToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
       />
@@ -669,32 +645,34 @@ export default function ProductsList() {
         show={showDeleteCurrencyModal}
         onClose={() => handleCurrencyModalClose(false)} 
         onConfirm={handleConfirmDeleteCurrency} 
+        loading={deletingCurrency} // NEW: تمرير حالة التحميل
         title="تأكيد حذف العملة"
         message={`هل أنت متأكد أنك تريد حذف العملة "${currencyToDelete?.name}" (${currencyToDelete?.code})؟ هذا الإجراء لا يمكن التراجع عنه.`} 
       />
 
       <AddProductModal
         show={showAddProductModal}
-        onClose={() => handleProductModalClose(true)} // Pass true to trigger refetch
+        onClose={() => handleProductModalClose(true)}
         onAddProductConfirm={handleConfirmAddProduct}
         availableCategories={categories.map(cat => cat.name)} 
-        availableCurrencies={currencies} // ✅ NEW: Pass the full currency objects
+        availableCurrencies={currencies} 
       />
 
       {/* NEW: Update Product Modal */}
       <UpdateProductModal
         show={showUpdateProductModal}
-        onClose={() => handleProductModalClose(true)} // Pass true to trigger refetch
-        productToEdit={productToEdit} // Pass the full product object
+        onClose={() => handleProductModalClose(true)} 
+        productToEdit={productToEdit} 
         availableCategories={categories.map(cat => cat.name)} 
-        availableCurrencies={currencies} // ✅ NEW: Pass the full currency objects
+        availableCurrencies={currencies}
       />
 
       {/* NEW: Confirm Delete Product Modal */}
       <ConfirmDeleteModal
         show={showDeleteProductModal}
-        onClose={() => handleProductModalClose(false)} // Just close without re-fetching if cancelled
-        onConfirm={handleConfirmDeleteProduct} // Call the specific delete handler
+        onClose={() => handleProductModalClose(false)} 
+        onConfirm={handleConfirmDeleteProduct} 
+        loading={deletingProduct} // NEW: تمرير حالة التحميل
         title="تأكيد حذف المنتج"
         message={`هل أنت متأكد أنك تريد حذف المنتج "${productToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
       />

@@ -14,7 +14,7 @@ import React from 'react';
  * @param {function} props.renderRow - دالة تعيد JSX لكل صف من البيانات. تتلقى (item, index) كمعاملات.
  * @param {string} [props.rowKeyField='id'] - اسم المفتاح في كائنات البيانات الذي يجب استخدامه كمفتاح فريد لـ <tr>.
  */
-export default function Table({
+export default function Table2({
   headers,
   data,
   loading,
@@ -38,29 +38,26 @@ export default function Table({
   return (
     <div className="amiriFont min-w-full text-white flex flex-col">
       <div className="overflow-x-auto">
-        <table className="min-w-full table-fixed">
-          <thead>
-            <tr className="accentColor text-white">
-              {headers.map((header) => (
-                <th key={header.key} className="py-3 px-4 text-right" style={{ width: '72%' }}>
-                  {header.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      <div className="overflow-y-auto" style={{ height: '400px' }}>
-        <table className="min-w-full table-fixed">
-          <tbody>
-            {data.map((item, index) => (
-              <tr key={item[rowKeyField]} className="border-b border-gray-700" >
-                {renderRow(item, index)}
+        <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
+          <table className="min-w-full table-fixed">
+            <thead>
+              <tr className="accentColor text-white sticky top-0">
+                {headers.map((header) => (
+                  <th key={header.key} className="py-3 px-4 text-right">
+                    {header.label}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.map((item, index) => (
+                <tr key={item[rowKeyField]} className="border-b border-gray-700">
+                  {renderRow(item, index)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

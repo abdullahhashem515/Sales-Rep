@@ -6,8 +6,7 @@ import SearchFilterBar from "../../components/shared/SearchFilterBar";
 import ConfirmDeleteModal from "../../components/shared/ConfirmDeleteModal";
 import CustomerCard from "./CustomerCard";
 import ViewCustomerModal from "./ViewCustomerModal";
-import AddUpdateCustomerModal from "./AddUpdateCustomerModal"; // NEW: Import the unified modal
-
+import AddUpdateCustomerModal from "./AddUpdateCustomerModal"; 
 
 import { get, del } from '../../utils/apiService';
 import { toast } from 'react-toastify';
@@ -16,24 +15,21 @@ export default function Customerslist() {
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [errorCustomers, setErrorCustomers] = useState(null);
+  const [deleting, setDeleting] = useState(false); // NEW: حالة التحميل الخاصة بالحذف
 
-  // Search and Pagination states
   const [searchTerm, setSearchTerm] = useState('');
   const [searchBy, setSearchBy] = useState('name');
   const [currentPage, setCurrentPage] = useState(1);
-  const customersPerPage = 6; // Display 6 cards per page
+  const customersPerPage = 6; 
 
-  // Modals visibility states
-  const [showAddUpdateCustomerModal, setShowAddUpdateCustomerModal] = useState(false); // Unified modal state
+  const [showAddUpdateCustomerModal, setShowAddUpdateCustomerModal] = useState(false); 
   const [showDeleteCustomerModal, setShowDeleteCustomerModal] = useState(false);
   const [showViewCustomerModal, setShowViewCustomerModal] = useState(false); 
 
-  // States to hold the customer object for editing, deleting or viewing
-  const [customerToEditOrAdd, setCustomerToEditOrAdd] = useState(null); // Holds customer for edit, or null for add
+  const [customerToEditOrAdd, setCustomerToEditOrAdd] = useState(null); 
   const [customerToDelete, setCustomerToDelete] = useState(null); 
   const [customerToView, setCustomerToView] = useState(null); 
 
-  // Function to fetch customers from the API
   const fetchCustomers = async () => {
     setLoadingCustomers(true);
     setErrorCustomers(null);
@@ -46,19 +42,17 @@ export default function Customerslist() {
         return;
       }
 
-      // Construct query parameters for search
       const params = {};
       if (searchTerm) {
         if (searchBy === 'name') params.name = searchTerm;
         if (searchBy === 'phone') params.phone = searchTerm;
         if (searchBy === 'city') params.city = searchTerm;
         if (searchBy === 'address') params.address = searchTerm;
-        if (searchBy === 'gender') params.gender = searchTerm.toLowerCase(); // Assuming gender is 'male' or 'female'
+        if (searchBy === 'gender') params.gender = searchTerm.toLowerCase();
       }
       
       const response = await get('admin/customers', token, params);
       
-      // The API returns an array directly, or an object with a 'customers' array
       if (Array.isArray(response)) {
         setCustomers(response);
       } else if (response && Array.isArray(response.customers)) {
@@ -76,17 +70,14 @@ export default function Customerslist() {
     }
   };
 
-  // Fetch customers on component mount and when search terms change
   useEffect(() => {
     fetchCustomers();
-  }, [searchTerm, searchBy]); // Re-fetch when search terms change
+  }, [searchTerm, searchBy]); 
 
-  // Reset pagination when filtered data changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [customers]); // Reset page when base customer list changes (e.g., after add/edit/delete)
+  }, [customers]); 
 
-  // Memoized filtered and paginated customers
   const searchOptions = [
     { value: 'name', label: 'الاسم' },
     { value: 'phone', label: 'رقم الجوال' },
@@ -95,7 +86,6 @@ export default function Customerslist() {
     { value: 'gender', label: 'الجنس' },
   ];
 
-  // Pagination Logic
   const totalPages = Math.ceil(customers.length / customersPerPage);
   const indexOfLastCustomer = currentPage * customersPerPage;
   const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
@@ -109,9 +99,8 @@ export default function Customerslist() {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-  // Handlers for Modals
   const handleAddCustomerClick = () => {
-    setCustomerToEditOrAdd(null); // Set to null for add mode
+    setCustomerToEditOrAdd(null); 
     setShowAddUpdateCustomerModal(true);
   };
 
@@ -121,7 +110,7 @@ export default function Customerslist() {
   };
 
   const handleEditCustomerClick = (customer) => {
-    setCustomerToEditOrAdd(customer); // Set customer for edit mode
+    setCustomerToEditOrAdd(customer); 
     setShowAddUpdateCustomerModal(true);
   };
 
@@ -131,50 +120,43 @@ export default function Customerslist() {
   };
 
   const handleCustomerModalClose = (isSuccess = false) => {
-    setShowAddUpdateCustomerModal(false); // Close unified modal
+    setShowAddUpdateCustomerModal(false); 
     setShowDeleteCustomerModal(false);
     setShowViewCustomerModal(false); 
-    setCustomerToEditOrAdd(null); // Clear customer data
+    setCustomerToEditOrAdd(null); 
     setCustomerToDelete(null);
     setCustomerToView(null); 
     if (isSuccess) {
-      // ✅ ملاحظة: استدعي fetchCustomers() مع تأخير بسيط لضمان التزامن الكامل
-      // بعد التحديث الفوري للحالة المحلية في handleConfirmDeleteCustomer
-      // هذا الاستدعاء مهم لمزامنة البيانات بعد أي عملية (إضافة/تعديل/حذف)
       setTimeout(() => fetchCustomers(), 100); 
     }
   };
 
-  // Handle actual deletion
-const handleConfirmDeleteCustomer = async () => {
-  if (!customerToDelete) return;
+  const handleConfirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
 
-  setLoadingCustomers(true);
-  try {
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-      toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
-      setLoadingCustomers(false);
-      return;
+    setDeleting(true); // NEW: بدء حالة التحميل
+    try {
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        toast.error('لا يوجد رمز مصادقة للحذف. يرجى تسجيل الدخول.');
+        setDeleting(false);
+        return;
+      }
+
+      await del(`admin/customers/${customerToDelete.slug}`, token); 
+
+      toast.success('تم حذف العميل بنجاح!');
+
+      setCustomers(prev => prev.filter(cust => cust.id !== customerToDelete.id));
+
+    } catch (err) {
+      console.error("Error deleting customer:", err);
+      toast.error('فشل في حذف العميل: ' + (err.message || 'خطأ غير معروف.'));
+    } finally {
+      setDeleting(false); // NEW: إنهاء حالة التحميل
+      handleCustomerModalClose(true);
     }
-
-    await del(`admin/customers/${customerToDelete.slug}`, token); 
-
-    // ✅ الرسالة بالعربية دائمًا، نتجاهل أي رسالة من السيرفر
-    toast.success('تم حذف العميل بنجاح!');
-
-    // تحديث الحالة المحلية مباشرة لإزالة العميل
-    setCustomers(prev => prev.filter(cust => cust.id !== customerToDelete.id));
-
-  } catch (err) {
-    console.error("Error deleting customer:", err);
-    toast.error('فشل في حذف العميل: ' + (err.message || 'خطأ غير معروف.'));
-  } finally {
-    setLoadingCustomers(false);
-    handleCustomerModalClose(true);
-  }
-};
-
+  };
 
 
   return (
@@ -203,7 +185,7 @@ const handleConfirmDeleteCustomer = async () => {
           <p className="text-center text-lg text-white mt-8">لا توجد بيانات للعملاء لعرضها.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 rounded-2xl max-h-96 pr-4 border pt-5 pb-5 pl-5 border-white">
               {currentCustomers.map((customer) => (
                 <CustomerCard 
                   key={customer.id} 
@@ -215,7 +197,6 @@ const handleConfirmDeleteCustomer = async () => {
               ))}
             </div>
 
-            {/* Pagination Controls */}
             {customers.length > customersPerPage && (
               <div className="flex justify-center mt-8 items-center">
                 <button
@@ -241,24 +222,21 @@ const handleConfirmDeleteCustomer = async () => {
         )}
       </div>
 
-      {/* Unified Add/Update Customer Modal */}
-      {showAddUpdateCustomerModal && (
-        <AddUpdateCustomerModal
-          show={showAddUpdateCustomerModal}
-          onClose={handleCustomerModalClose}
-          customerToEdit={customerToEditOrAdd} // Pass null for add, or customer object for edit
-        />
-      )}
+      <AddUpdateCustomerModal
+        show={showAddUpdateCustomerModal}
+        onClose={handleCustomerModalClose}
+        customerToEdit={customerToEditOrAdd}
+      />
       
       <ConfirmDeleteModal
         show={showDeleteCustomerModal}
         onClose={() => handleCustomerModalClose(false)}
         onConfirm={handleConfirmDeleteCustomer}
+        loading={deleting} // NEW: تمرير حالة التحميل
         title="تأكيد حذف العميل"
         message={`هل أنت متأكد أنك تريد حذف العميل "${customerToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
       />
 
-      {/* View Customer Modal */}
       {showViewCustomerModal && (
         <ViewCustomerModal
           show={showViewCustomerModal}

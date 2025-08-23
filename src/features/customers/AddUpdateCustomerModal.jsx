@@ -5,7 +5,7 @@ import FormSelectField from "../../components/shared/FormSelectField";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { toast } from 'react-toastify'; 
 import { post, put, get } from '../../utils/apiService';
-import SearchableSelectField from "../../components/shared/SearchableSelectField";
+import SearchableSelectFieldV2 from "../../components/shared/SearchableSelectFieldV2";
 
 
 /**
@@ -452,7 +452,7 @@ setRepresentatives(reps);
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-     <SearchableSelectField
+   <SearchableSelectFieldV2
   label="تابع للمندوب"
   value={representativeId}
   onChange={(val) => setRepresentativeId(val)}
@@ -460,6 +460,7 @@ setRepresentatives(reps);
   placeholder="اختر مندوب..."
   error={errors.user_id}
 />
+
 
 
           <FormInputField

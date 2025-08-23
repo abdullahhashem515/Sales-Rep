@@ -13,6 +13,7 @@ import Customerslist from '../features/customers/customerslist';
 import Inventorieslist from '../features/inventories/inventorieslist';
 import Salesrep from '../features/salesrep/salesrep';
 import Visitslist from '../features/visits/visitslist';
+import Voucherslist from '../features/vouchers/voucherslist';
 const routes = [
   {
     path: '/',
@@ -103,6 +104,14 @@ const routes = [
         element: (
           <ProtectedRoute>
             <Visitslist />
+          </ProtectedRoute>
+        ) 
+      },
+       { 
+        path: 'voucherslist', 
+        element: (
+          <ProtectedRoute>
+            <Voucherslist />
           </ProtectedRoute>
         ) 
       },

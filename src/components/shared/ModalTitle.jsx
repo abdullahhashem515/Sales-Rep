@@ -7,6 +7,6 @@ import React from 'react';
  */
 export default function ModalTitle({ title }) {
   return (
-    <h2 className="text-xl font-bold mb-4 text-right">{title}</h2>
+    <h2 className="text-xl font-bold mb-4 text-right print:hidden">{title}</h2>
   );
 }
