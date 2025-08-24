@@ -8,6 +8,11 @@ import ConfirmDeleteModal from "../../components/shared/ConfirmDeleteModal";
 import { toast } from 'react-toastify';
 import { get, del } from '../../utils/apiService';
 import { AuthContext } from "../../contexts/AuthContext";
+import AddClientVoucherModal from './AddClientVoucherModal';
+import AddSalespersonVoucherModal from './AddSalespersonVoucherModal';
+import VoucherDetailsModal from './VoucherDetailsModal';
+import EditClientVoucherModal from './EditClientVoucherModal';
+import EditSalespersonVoucherModal from './EditSalespersonVoucherModal';
 
 export default function Voucherslist() {
   const { token } = useContext(AuthContext);
@@ -26,13 +31,14 @@ export default function Voucherslist() {
   const [deleting, setDeleting] = useState(false);
 
   const [voucherToView, setVoucherToView] = useState(null);
-  const [voucherToEdit, setVoucherToEdit] = useState(null);
+  const [voucherToEditSlug, setVoucherToEditSlug] = useState(null);
   const [voucherToDelete, setVoucherToDelete] = useState(null);
+  const [editVoucherType, setEditVoucherType] = useState(null);
 
   const searchOptionsVouchers = [
     { value: 'voucher_number', label: 'رقم السند' },
-    { value: 'customer', label: 'اسم العميل' },
-    { value: 'sales_rep', label: 'اسم المندوب' },
+    { value: 'customer.name', label: 'اسم العميل' },
+    { value: 'sales_rep.name', label: 'اسم المندوب' },
     { value: 'payment_type', label: 'نوع الدفع' },
   ];
 
@@ -65,7 +71,10 @@ export default function Voucherslist() {
   const filteredVouchers = useMemo(() => {
     if (!searchTerm) return vouchers;
     const term = searchTerm.toLowerCase();
-    return vouchers.filter(vouch => String(getNestedValue(vouch, searchBy) || '').toLowerCase().includes(term));
+    return vouchers.filter(vouch => {
+      const value = getNestedValue(vouch, searchBy);
+      return String(value || '').toLowerCase().includes(term);
+    });
   }, [vouchers, searchTerm, searchBy]);
 
   const handleVoucherModalClose = (isSuccess = false) => {
@@ -75,8 +84,9 @@ export default function Voucherslist() {
     setShowVoucherDetailsModal(false);
     setShowEditVoucherModal(false);
     setVoucherToView(null);
-    setVoucherToEdit(null);
+    setVoucherToEditSlug(null);
     setVoucherToDelete(null);
+    setEditVoucherType(null);
     if (isSuccess) fetchVouchers();
   };
 
@@ -89,7 +99,13 @@ export default function Voucherslist() {
   };
   
   const handleEditVoucherClick = (voucher) => {
-    setVoucherToEdit(voucher);
+    setVoucherToEditSlug(voucher.slug);
+    // Corrected check: check if voucher.customer is a non-null object
+    if (!!voucher.customer) {
+      setEditVoucherType('client');
+    } else {
+      setEditVoucherType('salesperson');
+    }
     setShowEditVoucherModal(true);
   };
 
@@ -117,9 +133,6 @@ export default function Voucherslist() {
     }
   };
   
-  // ✅ تم حذف هذا الشرط من هنا
-  // if (loading) return ( ... );
-
   return (
     <MainLayout>
       <div className="text-white">
@@ -136,7 +149,6 @@ export default function Voucherslist() {
           <h3 className="amiriFont text-xl font-bold mb-4">قائمة السندات</h3>
           
           <div className="max-h-[70vh] overflow-y-auto pr-2 border-2 border-accentColor rounded-lg p-2">
-            {/* ✅ تم إضافة الشرط هنا بدلاً من الأعلى */}
             {loading ? (
                 <div className="flex items-center justify-center py-10">
                     <svg className="animate-spin h-8 w-8 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -153,13 +165,15 @@ export default function Voucherslist() {
                   <div key={voucher.slug} className="bg-gray-800 p-4 rounded-lg shadow-md flex items-center justify-between">
                     <div>
                       <h4 className="text-lg font-bold text-accentColor">
-                        {voucher.customer || voucher.sales_rep || 'غير محدد'}
+                        {voucher.customer || voucher.sales_rep|| 'غير محدد'}
                       </h4>
                       <p className="text-gray-300 text-sm">
                         ({voucher.customer ? 'سند تسديد عميل' : 'سند سحب مندوب'})
                       </p>
                       <p className="text-gray-400 text-xs">رقم السند: {voucher.voucher_number || 'غير متوفر'}</p>
-                      <p className="text-gray-400 text-xs">المبلغ: {voucher.amount || 0}</p>
+                      <p className="text-gray-400 text-xs">
+                        المبلغ: {voucher.amount || 0} {voucher.currency?.code || ''}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full" title="عرض تفاصيل السند" onClick={() => handleViewVoucherClick(voucher)}>
@@ -186,11 +200,25 @@ export default function Voucherslist() {
         </div>
       </div>
 
-      {/* Modals */}
-      {/* <AddClientVoucherModal show={showAddClientVoucherModal} onClose={handleVoucherModalClose} /> */}
-      {/* <AddSalespersonVoucherModal show={showAddSalespersonVoucherModal} onClose={handleVoucherModalClose} /> */}
-      {/* <VoucherDetailsModal show={showVoucherDetailsModal} onClose={handleVoucherModalClose} voucher={voucherToView} /> */}
-      {/* <EditVoucherModal show={showEditVoucherModal} onClose={handleVoucherModalClose} voucher={voucherToEdit} /> */}
+      <AddClientVoucherModal show={showAddClientVoucherModal} onClose={handleVoucherModalClose} />
+      <AddSalespersonVoucherModal show={showAddSalespersonVoucherModal} onClose={handleVoucherModalClose} />
+      
+      <VoucherDetailsModal show={showVoucherDetailsModal} onClose={handleVoucherModalClose} voucher={voucherToView} />
+      {showEditVoucherModal && editVoucherType === 'client' && (
+        <EditClientVoucherModal
+          show={showEditVoucherModal}
+          onClose={handleVoucherModalClose}
+          slug={voucherToEditSlug}
+        />
+      )}
+      {showEditVoucherModal && editVoucherType === 'salesperson' && (
+        <EditSalespersonVoucherModal
+          show={showEditVoucherModal}
+          onClose={handleVoucherModalClose}
+          slug={voucherToEditSlug}
+        />
+      )}
+
       <ConfirmDeleteModal
         show={showDeleteVoucherModal}
         onClose={() => handleVoucherModalClose(false)}
