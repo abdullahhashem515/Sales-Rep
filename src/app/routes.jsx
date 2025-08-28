@@ -11,9 +11,10 @@ import Orderslist from '../features/orders/orderslist';
 import Invoiceslist from '../features/invoices/invoiceslist';
 import Customerslist from '../features/customers/customerslist';
 import Inventorieslist from '../features/inventories/inventorieslist';
-import Salesrep from '../features/salesrep/salesrep';
+import Accountslist from '../features/accounts/accountslist';
 import Visitslist from '../features/visits/visitslist';
 import Voucherslist from '../features/vouchers/voucherslist';
+import Reportslist from '../features/reports/reportslist';
 const routes = [
   {
     path: '/',
@@ -92,10 +93,10 @@ const routes = [
         ) 
       },
        { 
-        path: 'salesrep', 
+        path: 'accountslist', 
         element: (
           <ProtectedRoute>
-            <Salesrep />
+            <Accountslist />
           </ProtectedRoute>
         ) 
       },
@@ -112,6 +113,14 @@ const routes = [
         element: (
           <ProtectedRoute>
             <Voucherslist />
+          </ProtectedRoute>
+        ) 
+      },
+        { 
+        path: 'reportslist', 
+        element: (
+          <ProtectedRoute>
+            <Reportslist />
           </ProtectedRoute>
         ) 
       },

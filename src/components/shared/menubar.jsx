@@ -39,17 +39,17 @@ export function Menubar() {
 
   const handleLogout = async () => {
     try {
+      navigate("/login");
       setLoading(true); // إظهار اللودينق
       const token = localStorage.getItem("userToken");
 
       const response = await get("admin/logout", token);
-
       localStorage.removeItem("userToken");
       localStorage.removeItem("userName");
-
+  
       setLoading(false); // إخفاء اللودينق
       toast.success(response.message || "تم تسجيل الخروج بنجاح.");
-      navigate("/login");
+    
     } catch (error) {
       console.error("Logout error:", error);
       setLoading(false);
@@ -119,24 +119,15 @@ export function Menubar() {
             </ListItemSuffix>
           </ListItem>
 
+         
           <ListItem
             className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
             onClick={() => navigate("/returnslist")}
           >
             <ListItemPrefix>
-              <ArrowUturnLeftIcon className="h-5 w-5 text-xs" />
+                           <ArrowUturnLeftIcon className="h-5 w-5 text-xs" />
             </ListItemPrefix>
-            المرتجعات
-            <ListItemSuffix>
-              <Chip
-                value="14"
-                size="sm"
-                variant="ghost"
-                color="blue-red"
-                className="rounded accentColor mr-5"
-              />
-            </ListItemSuffix>
-          </ListItem>
+المرتجعات          </ListItem>
 
           <ListItem
             className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
@@ -180,12 +171,12 @@ export function Menubar() {
 
           <ListItem
             className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
-            onClick={() => navigate("/salesrep")}
+            onClick={() => navigate("/accountslist")}
           >
             <ListItemPrefix>
               <BriefcaseIcon className="h-5 w-5" />
             </ListItemPrefix>
-            المندوبين
+            الحسابات{" "}
           </ListItem>
 
           <ListItem
@@ -197,6 +188,14 @@ export function Menubar() {
             </ListItemPrefix>
             الزيارات
           </ListItem>
+           <ListItem
+            className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"
+            onClick={() => navigate("/reportslist")}
+          >
+            <ListItemPrefix>
+              <MapPinIcon className="h-5 w-5" />
+            </ListItemPrefix>
+التقارير          </ListItem>
 
           <ListItem
             className="pt-3 pb-3 text-lg amiriFont hover:bg-blue-100/40 cursor-pointer transition-colors"

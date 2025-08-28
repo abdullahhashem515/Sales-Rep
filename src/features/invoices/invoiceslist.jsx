@@ -103,7 +103,8 @@ export default function InvoicesList() {
     if (!invoiceToDelete || !token) return;
     setDeleting(true);
     try {
-      const response = await del(`admin/invoices/${invoiceToDelete.id}`, token);
+      // تم التعديل هنا: إرسال الـ slug بدلاً من الـ id
+      const response = await del(`admin/invoices/${invoiceToDelete.slug}`, token); 
       if (response?.status === true) {
         toast.success('تم حذف الفاتورة بنجاح!');
         handleInvoiceModalClose(true);
@@ -185,7 +186,7 @@ export default function InvoicesList() {
       <EditInvoiceModal 
           show={showEditInvoiceModal}
           onClose={handleInvoiceModalClose}
-          invoice={invoiceToEdit} // ✨ تم التعديل لتمرير الكائن بالكامل
+          invoice={invoiceToEdit}
       />
       <ConfirmDeleteModal
         show={showDeleteInvoiceModal}
