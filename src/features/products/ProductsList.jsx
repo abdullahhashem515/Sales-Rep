@@ -70,7 +70,7 @@ export default function ProductsList() {
 
   // Pagination states for products
   const [currentPageProducts, setCurrentPageProducts] = useState(1);
-  const productsPerPage = 4; 
+const [productsPerPage, setProductsPerPage] = useState(4);
 
   // --- Fetch Categories from API ---
   const fetchCategories = async () => {
@@ -555,6 +555,13 @@ export default function ProductsList() {
             options={searchOptionsProducts} 
             placeholder="بحث عن منتج"
           />
+           <input
+      type="number"
+      min="1"
+      className="w-20 p-2 border rounded bg-gray-900 text-white"
+      value={productsPerPage}
+      onChange={(e) => setProductsPerPage(Number(e.target.value))}
+    />
         </div>
 
         <div className="mt-8 mb-4">
@@ -640,7 +647,6 @@ export default function ProductsList() {
         onClose={handleCurrencyModalClose} 
         currencyToEdit={currencyToEdit} 
       />
-
       <ConfirmDeleteModal
         show={showDeleteCurrencyModal}
         onClose={() => handleCurrencyModalClose(false)} 

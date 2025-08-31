@@ -50,27 +50,19 @@ export default function ReportsList() {
                         colorClass="bg-emerald-600 hover:bg-emerald-700" 
                     />
                     <ReportButton 
-                        title="المندوبين ومبيعاتهم" 
+                        title="المبيعات" 
                         icon={<ChartBarIcon className="h-10 w-10" />} 
                         colorClass="bg-cyan-600 hover:bg-cyan-700" 
                     />
+                  
                     <ReportButton 
-                        title="العملاء ومشترياتهم" 
-                        icon={<ShoppingBagIcon className="h-10 w-10" />} 
-                        colorClass="bg-fuchsia-600 hover:bg-fuchsia-700" 
-                    />
-                    <ReportButton 
-                        title="المندوبين والسندات" 
+                        title="سندات القبض" 
                         icon={<DocumentTextIcon className="h-10 w-10" />} 
                         colorClass="bg-orange-600 hover:bg-orange-700" 
                     />
+                   
                     <ReportButton 
-                        title="العملاء والسندات" 
-                        icon={<DocumentTextIcon className="h-10 w-10" />} 
-                        colorClass="bg-red-600 hover:bg-red-700" 
-                    />
-                    <ReportButton 
-                        title="المندوبين والعملاء ومرتجعاتهم" 
+                        title="المرتجعات" 
                         icon={<ShoppingBagIcon className="h-10 w-10" />} 
                         colorClass="bg-purple-600 hover:bg-purple-700" 
                     />

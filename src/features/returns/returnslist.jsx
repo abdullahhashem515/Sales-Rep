@@ -164,13 +164,13 @@ export default function ReturnsList() {
                       <button className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full" title="عرض تفاصيل المرتجع" onClick={() => handleViewReturnClick(saleReturn)}>
                         <EyeIcon className="w-5 h-5 text-white" />
                       </button>
-                      <button 
+{/*                       <button 
                           className="bg-yellow-500 hover:bg-yellow-600 p-2 rounded-full" 
                           title="تعديل المرتجع" 
                           onClick={() => handleEditReturnClick(saleReturn)}
                       >
                           <PencilIcon className="w-5 h-5 text-white" />
-                      </button>
+                      </button> */}
                       <button className="bg-red-500 hover:bg-red-600 p-2 rounded-full" onClick={() => handleDeleteReturnClick(saleReturn)} title="حذف المرتجع">
                         <TrashIcon className="w-5 h-5 text-white" />
                       </button>

@@ -23,7 +23,7 @@ export default function ReturnDetailsModal({ show, onClose, returnData }) {
       return dateString;
     }
   };
-
+console.log("iiiiiiiiiiii",returnData);
   const formatCurrency = (amount, currencyCode) =>
     `${parseFloat(amount || 0).toFixed(2)} ${currencyCode || ""}`;
 
@@ -93,14 +93,14 @@ export default function ReturnDetailsModal({ show, onClose, returnData }) {
           {/* بيانات المرتجع الأساسية */}
           <div className="flex justify-between w-full text-sm mt-1 mb-2">
             <p>
-              فاتورة رقم: <span className="font-semibold">{returnData.return_number || "N/A"}</span>
+ رقم الفاتورة المرجعة <span className="font-semibold">{returnData.return_number || "N/A"}</span>
             </p>
             <div className="text-right">
               <p>
                 تاريخ المرتجع: <span className="font-semibold">{formatDate(returnData.return_date)}</span>
               </p>
               <p>
-                العملة: <span className="font-bold">({returnData.currency?.code || "N/A"})</span>
+                العملة: <span className="font-bold">({returnData.currency || "N/A"})</span>
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function ReturnDetailsModal({ show, onClose, returnData }) {
               <span className="text-lg font-bold text-teal-600">
                 {formatCurrency(
                   returnData.total_amount,
-                  returnData.currency?.code
+                  returnData.currency
                 )}
               </span>
             </p>

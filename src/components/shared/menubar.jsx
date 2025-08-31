@@ -38,24 +38,26 @@ export function Menubar() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      navigate("/login");
-      setLoading(true); // إظهار اللودينق
-      const token = localStorage.getItem("userToken");
+    // حذف التوكن واسم المستخدم مباشرة
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userName");
+    navigate("/login"); 
 
+    try {
+      setLoading(true); // إظهار اللودينق
+      const token = localStorage.getItem("userToken"); // بعد الحذف سيكون null
       const response = await get("admin/logout", token);
-      localStorage.removeItem("userToken");
-      localStorage.removeItem("userName");
-  
+
       setLoading(false); // إخفاء اللودينق
       toast.success(response.message || "تم تسجيل الخروج بنجاح.");
-    
     } catch (error) {
       console.error("Logout error:", error);
       setLoading(false);
-      toast.error(error.message || "فشل تسجيل الخروج. حاول مرة أخرى.");
+      // لا مشكلة لو فشل، لأننا أصلاً حذفنا التوكن
+      toast.error("تم تسجيل الخروج محلياً.");
     }
   };
+
 
   return (
     <>

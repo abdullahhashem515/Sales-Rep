@@ -84,6 +84,7 @@ export default function AddReturnModal({ show, onClose }) {
         setReturnItems(selected.items.map(item => ({
           invoice_item_id: item.id, // استخدام ID بند الفاتورة كمفتاح
           product_name: item.name,
+          unit:item.unit,
           max_quantity: item.quantity,
           quantity: 0,
           reason: '',
@@ -171,7 +172,7 @@ export default function AddReturnModal({ show, onClose }) {
       setIsLoading(false);
     }
   };
-
+console.log("hhhhhhhh",returnItems);
   return (
     <ModalWrapper
       show={show}
@@ -211,13 +212,13 @@ export default function AddReturnModal({ show, onClose }) {
             <h4 className="text-base font-bold border-b border-gray-700 pb-2 mb-2">
               المنتجات في فاتورة: {selectedInvoice.invoice_number}
             </h4>
-            <div className="max-h-96 overflow-y-auto pr-2">
+            <div className="max-h-96 overflow-y-auto ">
               {returnItems.length > 0 ? (
                 returnItems.map((item) => (
-                  <div key={item.invoice_item_id} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center py-2 border-b border-gray-700 last:border-b-0">
+                  <div key={item.invoice_item_id} className="flex gap-4 items-center  border-b border-gray-700 last:border-b-0">
                     <div className="col-span-1">
                       <p className="font-semibold text-white">
-                        {item.product_name}
+                        {item.product_name + item.unit}
                       </p>
                       <p className="text-xs text-gray-400">
                         الكمية في الفاتورة: {item.max_quantity}

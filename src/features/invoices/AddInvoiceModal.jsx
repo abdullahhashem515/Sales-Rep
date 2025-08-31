@@ -417,7 +417,7 @@ export default function AddInvoiceModal({ show, onClose }) {
             <div>سعر الوحدة</div>
             <div>الإجمالي</div>
           </div>
-          <div className="max-h-96 overflow-y-auto pr-2">
+          <div className="max-h-96 pr-2">
             {productInputRows.length > 0 ? (
               productInputRows.map((row, index) => (
                 <div key={index} className="grid grid-cols-invoice-products gap-3 items-center py-2 border-b border-gray-700 last:border-b-0">
