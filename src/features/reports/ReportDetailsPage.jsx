@@ -1,3 +1,4 @@
+// src/features/reports/ReportDetailsModal.jsx
 import React, { useEffect, useState } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import logo from "/logo.png";
@@ -21,6 +22,13 @@ const companyInfo = {
 export default function ReportDetailsModal({ show, onClose, reportData }) {
   const [isVisible, setIsVisible] = useState(false);
 
+  // ✅ كائن لترجمة حالات الطلبات من الإنجليزية إلى العربية
+  const statusMap = {
+    accepted: "مقبول",
+    pending: "معلق",
+    cancelled: "مرفوض",
+  };
+
   useEffect(() => {
     setIsVisible(show);
   }, [show]);
@@ -30,27 +38,28 @@ export default function ReportDetailsModal({ show, onClose, reportData }) {
     onClose();
   };
 
+  // بيانات تجريبية (mock data)
   const mockReportData = [
     {
       id: 1,
-      repName: "علياء أحمد",
-      orderNumber: "ORD-001",
-      orderDate: "2023-08-01",
-      status: "مقبول",
+      user: { name: "علياء أحمد" },
+      order_number: "ORD-001",
+      order_date: "2023-08-01",
+      status: "accepted", // ✅ تم تغيير الحالة التجريبية لتكون متوافقة
     },
     {
       id: 4,
-      repName: "علياء أحمد",
-      orderNumber: "ORD-004",
-      orderDate: "2023-08-04",
-      status: "مقبول",
+      user: { name: "علياء أحمد" },
+      order_number: "ORD-004",
+      order_date: "2023-08-04",
+      status: "pending", // ✅ تم تغيير الحالة التجريبية لتكون متوافقة
     },
     {
       id: 5,
-      repName: "محمد سعيد",
-      orderNumber: "ORD-005",
-      orderDate: "2023-08-05",
-      status: "مقبول",
+      user: { name: "محمد سعيد" },
+      order_number: "ORD-005",
+      order_date: "2023-08-05",
+      status: "rejected", // ✅ تم تغيير الحالة التجريبية لتكون متوافقة
     },
   ];
 
@@ -61,9 +70,9 @@ export default function ReportDetailsModal({ show, onClose, reportData }) {
       show={show}
       onClose={handleCloseModal}
       isVisible={isVisible}
-      title="تقرير الطلبات المصفاة"
+      title="تقرير طلبات الجملة"
       maxWidth="max-w-6xl"
-      maxHeight="max-h-[100vh]"
+      maxHeight="max-h-4x1"
     >
       {/* الحاوية التي ستتم طباعتها */}
       <div className="bg-white p-3 text-gray-900 overflow-y-auto max-h-[80vh] print-container">
@@ -81,7 +90,11 @@ export default function ReportDetailsModal({ show, onClose, reportData }) {
 
           {/* الشعار (الوسط) */}
           <div className="flex-shrink-0 mx-4">
-            <img src={logo} alt="Company Logo" className="h-30 object-contain" />
+            <img
+              src={logo}
+              alt="Company Logo"
+              className="h-30 object-contain"
+            />
           </div>
 
           {/* بيانات الشركة بالإنجليزية (يسار) */}
@@ -99,7 +112,7 @@ export default function ReportDetailsModal({ show, onClose, reportData }) {
         <div className="relative flex items-center my-4">
           <div className="flex-grow border-t border-gray-300"></div>
           <span className="mx-4 text-xl font-semibold text-gray-700">
-            تقرير الطلبات
+            تقرير طلبات الجملة{" "}
           </span>
           <div className="flex-grow border-t border-gray-300"></div>
         </div>
@@ -128,16 +141,17 @@ export default function ReportDetailsModal({ show, onClose, reportData }) {
                       {index + 1}
                     </td>
                     <td className="py-2 px-3 border border-gray-200">
-                      {item.repName}
+                      {item.user.name}
                     </td>
                     <td className="py-2 px-3 border border-gray-200">
-                      {item.orderNumber}
+                      {item.order_number}
                     </td>
                     <td className="py-2 px-3 border border-gray-200">
-                      {item.orderDate}
+                      {item.order_date}
                     </td>
                     <td className="py-2 px-3 border border-gray-200">
-                      {item.status}
+                      {/* ✅ استخدام كائن statusMap لعرض الحالة بالعربي */}
+                      {statusMap[item.status] || item.status}
                     </td>
                   </tr>
                 ))
