@@ -118,6 +118,8 @@ const RepAndOrdersModal = ({ show, onClose, title, onPreviewAndPrint, onOpenOrde
       onClose={onClose}
       title={title}
       maxWidth="max-w-7xl"
+      maxHeight="max-h-[90vh]"
+
     >
       <div className="p-4 space-y-6">
         {/* الفلاتر */}

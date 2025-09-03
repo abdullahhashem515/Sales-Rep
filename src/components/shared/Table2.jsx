@@ -38,7 +38,7 @@ export default function Table2({
   return (
     <div className="amiriFont min-w-full text-white flex flex-col">
       <div className="overflow-x-auto">
-        <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: '300px' }}>
           <table className="min-w-full table-fixed">
             <thead>
               <tr className="accentColor text-white sticky top-0">

@@ -21,7 +21,7 @@ export default function ModalWrapper({
   title,
   children,
   maxWidth = 'max-w-2xl',
-  maxHeight = 'max-w-2xl',
+  maxHeight = 'max-h-2xl',
 }) {
   // لا تعرض شيئًا إذا المودال لم يتم استدعاؤه بعد الإغلاق
   if (!show) return null;

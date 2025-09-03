@@ -60,3 +60,44 @@ body {
  
 }
 
+/* ضعه في ملف CSS عام مثل index.css أو global.css */
+@media print {
+  .print-container {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
+@media print {
+  table th,
+  table td {
+    font-size: 12px; /* تصغير النص قليلاً للطباعة */
+    padding: 4px;
+  }
+
+  /* تكبير عرض عمود الملاحظة */
+  .col-note {
+    width: 250px !important; /* تقدر تزود أو تنقص */
+    white-space: normal !important; /* يخلي النص ينزل لسطر جديد */
+  }
+
+  /* تصغير باقي الأعمدة لو لزم */
+  .col-small {
+    width: 100px !important;
+  }
+}
+
+@media print {
+  /* نلغي خصائص المودال وقت الطباعة */
+  .fixed.inset-0.flex.items-center.justify-center {
+    display: block !important;      /* يلغي flex */
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+ 
+}
