@@ -19,9 +19,9 @@ const companyInfo = {
   },
 };
 
-const SalesReportsPrintPreview = ({ show, onClose, reportData, filters }) => {
+const SalesReportsPrintPreview = ({ show, onClose, reportData, filters ,grandTotal }) => {
   const [isVisible, setIsVisible] = useState(false);
-
+console.log("skehsekjhcvksj",grandTotal);
   useEffect(() => {
     setIsVisible(show);
   }, [show]);
@@ -131,6 +131,19 @@ const SalesReportsPrintPreview = ({ show, onClose, reportData, filters }) => {
                 </tr>
               )}
             </tbody>
+               {/* ✅ الإجمالي الكلي */}
+    {reportData.length > 0 && (
+      <tfoot>
+        <tr className="bg-gray-100 font-bold border-t border-gray-300">
+          <td colSpan="6" className="py-2 px-2 text-left">
+            الإجمالي الكلي
+          </td>
+          <td className="py-2 px-2 text-right">
+            {formatCurrency(grandTotal, reportData[0]?.currency?.code)}
+          </td>
+        </tr>
+      </tfoot>
+    )}
           </table>
         </div>
 

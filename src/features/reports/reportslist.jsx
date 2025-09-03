@@ -1,3 +1,4 @@
+// src/features/reports/ReportsList.jsx
 import React, { useState } from "react";
 import MainLayout from "../../components/shared/MainLayout";
 import PageHeader from "../../components/shared/PageHeader";
@@ -60,6 +61,7 @@ export default function ReportsList() {
   const [isSalesReportsPrintPreviewOpen, setIsSalesReportsPrintPreviewOpen] = useState(false);
   const [salesReportData, setSalesReportData] = useState([]);
   const [salesReportFilters, setSalesReportFilters] = useState({});
+  const [salesReportGrandTotal, setSalesReportGrandTotal] = useState(0); // ✅ جديد
   const [isProductsAndPricesModalOpen, setIsProductsAndPricesModalOpen] = useState(false);
   const [isProductsAndPricesPrintPreviewOpen, setIsProductsAndPricesPrintPreviewOpen] = useState(false);
   const [productsAndPricesData, setProductsAndPricesData] = useState([]);
@@ -89,11 +91,9 @@ export default function ReportsList() {
     setIsOrderDetailsModalOpen(true);
   };
   
-  // ✅ تم تعديل هذه الدالة لتسمح بتراكب النماذج
   const handleRetailPreviewAndPrint = (data) => {
     setRetailReportData(data);
     setIsRetailReportDetailsModalOpen(true);
-    // ✅ تم إزالة سطر إغلاق النموذج: setIsRetailRepOrdersModalOpen(false);
   };
 
   const handleOpenRetailRepOrdersModal = () => {
@@ -115,9 +115,11 @@ export default function ReportsList() {
     setIsInvoiceDetailsModalOpen(true);
   };
 
-  const handleSalesPreviewAndPrint = (data, filters) => {
+  // ✅ تعديل: استقبل grandTotal وخزنه
+  const handleSalesPreviewAndPrint = (data, filters, grandTotal) => {
     setSalesReportData(data);
     setSalesReportFilters(filters);
+    setSalesReportGrandTotal(grandTotal);
     setIsSalesReportsPrintPreviewOpen(true);
   };
 
@@ -235,12 +237,13 @@ export default function ReportsList() {
         onOpenInvoiceDetails={handleOpenInvoiceDetailsModal}
         onPreviewAndPrint={handleSalesPreviewAndPrint}
       />
-          <SalesReportsPrintPreview
-      show={isSalesReportsPrintPreviewOpen}
-      onClose={() => setIsSalesReportsPrintPreviewOpen(false)}
-      reportData={salesReportData}
-      filters={salesReportFilters}
-    />
+      <SalesReportsPrintPreview
+        show={isSalesReportsPrintPreviewOpen}
+        onClose={() => setIsSalesReportsPrintPreviewOpen(false)}
+        reportData={salesReportData}
+        filters={salesReportFilters}
+        grandTotal={salesReportGrandTotal} // ✅ تمرير الإجمالي الكلي
+      />
       <InvoiceDetailsModal
         show={isInvoiceDetailsModalOpen}
         onClose={() => setIsInvoiceDetailsModalOpen(false)}
@@ -254,12 +257,12 @@ export default function ReportsList() {
         onPreviewAndPrint={handleRetailPreviewAndPrint}
         onOpenOrderDetails={handleOpenOrderDetails}
       />
-        <RetailReportDetailsModal
+      <RetailReportDetailsModal
         show={isRetailReportDetailsModalOpen}
         onClose={() => setIsRetailReportDetailsModalOpen(false)}
         reportData={retailReportData}
       />
-        <OrderPrintPreviewModal
+      <OrderPrintPreviewModal
         show={isOrderDetailsModalOpen}
         onClose={() => setIsOrderDetailsModalOpen(false)}
         order={selectedOrderData}

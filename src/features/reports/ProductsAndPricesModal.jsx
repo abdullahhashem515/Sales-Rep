@@ -148,7 +148,7 @@ const ProductsAndPricesModal = ({ show, onClose, onPreviewAndPrint }) => {
       isVisible={true}
       title="تقرير الأصناف وأسعارها"
       maxWidth="max-w-7xl"
-      maxHeight="max-h-[80vh]"
+      maxHeight="max-h-[100vh]"
     >
       <div className="p-4 space-y-6">
         <div className="flex flex-row flex-wrap items-center gap-4 pb-4 border-b border-gray-300">

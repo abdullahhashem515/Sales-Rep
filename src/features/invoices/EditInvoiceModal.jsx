@@ -356,21 +356,22 @@ export default function EditInvoiceModal({ show, onClose, invoice }) {
 
       const response = await put(`admin/invoices/${invoice.slug}`, payload, token);
 
-      if (response?.status === true) {
-        toast.success('تم حفظ التعديلات بنجاح!');
-        onClose(true);
-      } else {
-        let serverMessage = response?.error || response?.message || 'حدث خطأ أثناء حفظ التعديلات.';
-        toast.error(serverMessage);
-        setErrors({ general: serverMessage });
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'حدث خطأ أثناء حفظ التعديلات.';
-      toast.error(errorMessage);
-      setErrors({ general: errorMessage });
-    } finally {
-      setIsLoading(false);
-    }
+     if (response?.status === true) {
+  toast.success('تم حفظ التعديلات بنجاح!');
+  onClose(true);
+} else {
+  let serverMessage = response?.message; // ✅ فقط الرسالة
+  toast.error(serverMessage);
+  setErrors({ general: serverMessage });
+}
+
+} catch (err) {
+  const errorMessage = err?.message || "حدث خطأ غير متوقع"; // ✅ فقط message
+  toast.error(errorMessage);
+  setErrors({ general: errorMessage });
+} finally {
+  setIsLoading(false);
+}
   };
 
   if (loadingInitialData || !invoice) return (

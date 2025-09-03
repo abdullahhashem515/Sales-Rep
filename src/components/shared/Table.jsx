@@ -42,7 +42,7 @@ export default function Table({
           <thead>
             <tr className="accentColor text-white">
               {headers.map((header) => (
-                <th key={header.key} className="py-3 px-4 text-right" style={{ width: '72%' }}>
+                <th key={header.key} className="py-3 px-4 text-right" style={{ width: '80%' }}>
                   {header.label}
                 </th>
               ))}

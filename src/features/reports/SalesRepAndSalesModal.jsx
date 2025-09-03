@@ -133,6 +133,9 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
     { key: "actions", label: "الإجراءات" }, // ✅ العمود الجديد
   ];
 
+  // ✅ حساب الإجمالي الكلي
+  const grandTotal = data.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
+
   return (
     <ModalWrapper
       show={show}
@@ -140,7 +143,7 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
       isVisible={true}
       title="تقرير المبيعات"
       maxWidth="max-w-7xl"
-      maxHeight="max-h-[80vh]"
+      maxHeight="max-h-[100vh]"
     >
       <div className="p-4 space-y-6">
         {/* حقول التصفية */}
@@ -224,9 +227,23 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
             </>
           )}
         />
+
+  {!loading && data.length > 0 && (
+  <div className="overflow-x-auto bg-red-400 flex justify-start text-left" dir="ltr">
+    <table className="ml-0 mr-auto">
+      <tfoot>
+        <tr className="font-bold">
+          <td className="pl-35 pr-3 text-left">{grandTotal}</td>
+          <td className="text-right"> الإجمالي الكلي </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+)}
       </div>
+
       <div className="flex justify-center">
-        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data, filters)} />
+        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data, filters,grandTotal)} />
       </div>
     </ModalWrapper>
   );
