@@ -21,6 +21,8 @@ import CustomerVouchersModal from "./CustomerVouchersModal";
 import CustomerVouchersPrintPreview from "./CustomerVouchersPrintPreview";
 import SalesRepVouchersModal from "./SalesRepVouchersModal";
 import SalesRepVouchersPrintPreview from "./SalesRepVouchersPrintPreview";
+import InventoryReportModal from "./InventoryReportModal";
+import InventoryReportPrintPreview from "./InventoryReportPrintPreview";
 import {
   ChartBarIcon,
   ShoppingBagIcon,
@@ -76,6 +78,9 @@ export default function ReportsList() {
   const [isSalesRepVouchersModalOpen, setIsSalesRepVouchersModalOpen] = useState(false);
   const [isSalesRepVouchersPrintPreviewOpen, setIsSalesRepVouchersPrintPreviewOpen] = useState(false);
   const [salesRepVouchersData, setSalesRepVouchersData] = useState([]);
+  const [isInventoryReportModalOpen, setIsInventoryReportModalOpen] = useState(false);
+const [isInventoryReportPrintPreviewOpen, setIsInventoryReportPrintPreviewOpen] = useState(false);
+const [inventoryReportData, setInventoryReportData] = useState([]);
 
   const handleOpenReportModal = (data, type = "wholesale") => {
     setReportDataToPrint(data);
@@ -142,6 +147,10 @@ export default function ReportsList() {
     setSalesRepVouchersData(data);
     setIsSalesRepVouchersPrintPreviewOpen(true);
   };
+  const handleInventoryPreviewAndPrint = (data) => {
+    setInventoryReportData(data);
+    setIsInventoryReportPrintPreviewOpen(true);
+};
 
   return (
     <MainLayout>
@@ -190,11 +199,12 @@ export default function ReportsList() {
             colorClass="bg-purple-600 hover:bg-purple-700"
             onClick={() => setIsReturnsModalOpen(true)}
           />
-          <ReportButton
-            title="المخزون"
-            icon={<CubeIcon className="h-10 w-10" />}
-            colorClass="bg-teal-600 hover:bg-teal-700"
-          />
+         <ReportButton
+    title="المخزون"
+    icon={<CubeIcon className="h-10 w-10" />}
+    colorClass="bg-teal-600 hover:bg-teal-700"
+    onClick={() => setIsInventoryReportModalOpen(true)}
+/>
           <ReportButton
             title="إجمالي الأداء"
             icon={<SparklesIcon className="h-10 w-10" />}
@@ -313,6 +323,16 @@ export default function ReportsList() {
         onClose={() => setIsSalesRepVouchersPrintPreviewOpen(false)}
         reportData={salesRepVouchersData}
       />
+      <InventoryReportModal
+    show={isInventoryReportModalOpen}
+    onClose={() => setIsInventoryReportModalOpen(false)}
+    onPreviewAndPrint={handleInventoryPreviewAndPrint}
+/>
+<InventoryReportPrintPreview
+    show={isInventoryReportPrintPreviewOpen}
+    onClose={() => setIsInventoryReportPrintPreviewOpen(false)}
+    reportData={inventoryReportData}
+/>
     </MainLayout>
   );
 }
