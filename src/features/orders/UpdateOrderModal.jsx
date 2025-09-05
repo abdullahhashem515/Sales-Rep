@@ -35,29 +35,18 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCurrencies, setLoadingCurrencies] = useState(false);
-
+  
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [fetchingOrder, setFetchingOrder] = useState(false);
+  const [fetchingData, setFetchingData] = useState(true);
 
-  // جلب البيانات الأساسية عند فتح المودال
   useEffect(() => {
     if (!show) {
       setIsVisible(false);
       return;
     }
-
+    setFetchingData(true);
     const fetchData = async () => {
-      if (!token) {
-        toast.error("لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.");
-        return;
-      }
-
-      setLoadingSalespersons(true);
-      setLoadingCustomers(true);
-      setLoadingProducts(true);
-      setLoadingCurrencies(true);
-
       try {
         const [salesRes, custRes, prodRes, currRes] = await Promise.all([
           get("admin/users", token),
@@ -73,64 +62,34 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
         setCustomers(Array.isArray(custRes) ? custRes : custRes.customers || custRes.data || []);
         setProducts(Array.isArray(prodRes) ? prodRes : prodRes.products || prodRes.data || []);
         setCurrencies(Array.isArray(currRes) ? currRes : currRes.currencies || currRes.data || []);
-      } catch (err) {
-        toast.error("فشل جلب البيانات الأساسية.");
-        console.error("Failed to fetch essential data:", err);
-      } finally {
-        setLoadingSalespersons(false);
-        setLoadingCustomers(false);
-        setLoadingProducts(false);
-        setLoadingCurrencies(false);
-      }
-    };
 
-    fetchData();
-  }, [show, token]);
-
-  // جلب بيانات الطلب المحدد وتعبئة الحقول
-  useEffect(() => {
-    if (!show || !orderToEdit?.slug) return;
-
-    setFetchingOrder(true);
-    setIsVisible(false);
-
-    const fetchOrderDetails = async () => {
-      try {
-        const endpoint =
-          orderToEdit.type_order === "retail"
-            ? `admin/shipment-requests/${orderToEdit.slug}`
-            : `admin/orders/${orderToEdit.slug}`;
-
+        const endpoint = orderToEdit.type_order === "retail" ? `admin/shipment-requests/${orderToEdit.slug}` : `admin/orders/${orderToEdit.slug}`;
         const response = await get(endpoint, token);
-        const fetchedData = response.data || response["shipment-Request"];
+        const fetchedOrder = response.data || response["shipment-Request"];
 
-        if (!response.status || !fetchedData) {
+        if (!response.status || !fetchedOrder) {
           throw new Error(response.message || "فشل في جلب بيانات الطلب");
         }
 
-        const fetchedOrder = fetchedData;
-        const salesperson = salespersons.find(sp => sp.id === fetchedOrder.user_id);
-
+        const salesperson = reps.find(sp => sp.id === fetchedOrder.user_id);
+        
         setOrderSlug(fetchedOrder.slug);
         setSalespersonId(fetchedOrder.user_id || "");
-        setSelectedSalespersonType(
-          salesperson?.type_user || fetchedOrder.user?.type_user || null
-        );
+        setSelectedSalespersonType(salesperson?.type_user || fetchedOrder.user?.type_user || null);
         setCustomerId(fetchedOrder.customer_id || null);
         setCurrencyId(fetchedOrder.currency_id || "");
         setPaymentType(fetchedOrder.payment_type || "cash");
         setNote(fetchedOrder.note || "");
         setOrderDate(fetchedOrder.order_date || fetchedOrder.shipment_date || "");
         setOrderStatus(fetchedOrder.status || "");
-
-        const productsWithDetails = fetchedOrder.items.map((item) => {
+        
+        const productsWithDetails = (fetchedOrder.items || []).map((item) => {
           const productDetail = products.find((p) => p.id === item.product_id);
           const price = item.unit_price || 0;
           const subtotal = price * item.quantity;
           
-          // Fix 1: Normalize the fetched price string
           const normalizedPrice = parseFloat(price).toString();
-
+          
           return {
             product_id: item.product_id,
             quantity: item.quantity,
@@ -143,35 +102,31 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
         });
         setProductsInOrder(productsWithDetails);
         setIsVisible(true);
+
       } catch (err) {
-        console.error("Failed to fetch order details:", err);
+        console.error("Failed to fetch essential data or order details:", err);
         toast.error("فشل في جلب بيانات الطلب: " + (err.message || "حدث خطأ غير متوقع"));
         onClose(false);
       } finally {
-        setFetchingOrder(false);
+        setFetchingData(false);
       }
     };
+    fetchData();
+  }, [show, orderToEdit, token, onClose]);
 
-    if (salespersons.length > 0 && customers.length > 0 && products.length > 0 && currencies.length > 0) {
-      fetchOrderDetails();
-    }
-  }, [show, orderToEdit, token, salespersons, customers, products, currencies, onClose]);
-
+  // استخدام useMemo لضمان عدم إعادة حساب الخيارات إلا عند الضرورة
   const salespersonOptions = useMemo(
-    () =>
-      salespersons.map((sp) => ({
-        value: sp.id,
-        label: `${sp.name} (${sp.type_user === "ws_rep" ? "مندوب جملة" : "مندوب تجزئة"})`,
-        type_user: sp.type_user,
-      })),
+    () => salespersons.map((sp) => ({
+      value: sp.id,
+      label: `${sp.name} (${sp.type_user === "ws_rep" ? "مندوب جملة" : "مندوب تجزئة"})`,
+      type_user: sp.type_user,
+    })),
     [salespersons]
   );
 
   const filteredCustomerOptions = useMemo(() => {
     if (selectedSalespersonType === "ws_rep" && salespersonId) {
-      return customers
-        .filter((c) => c.user_id === salespersonId)
-        .map((c) => ({ value: c.id, label: c.name }));
+      return customers.filter((c) => c.user_id === salespersonId).map((c) => ({ value: c.id, label: c.name }));
     }
     return [];
   }, [customers, salespersonId, selectedSalespersonType]);
@@ -202,7 +157,6 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
       return [];
     }
     return currencyPrices.map(price => ({
-      // Fix 2: Normalize the option value string
       value: String(price.price),
       label: `${price.price} ${selectedCurrencyCode}`
     }));
@@ -230,7 +184,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
     setProductsInOrder(prevRows => {
       const newRows = [...prevRows];
       let row = { ...newRows[index] };
-
+      
       if (field === "product_id") {
         row.product_id = value;
         row.quantity = "";
@@ -250,7 +204,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
       } else if (field === "price") {
         row.price = value;
       }
-
+      
       const qty = parseFloat(row.quantity);
       const price = parseFloat(row.price);
       row.subtotal = (!isNaN(qty) && !isNaN(price)) ? (qty * price).toFixed(2) : "0.00";
@@ -300,9 +254,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
       return { ...row, errors: rowErrors };
     });
 
-    const finalProductsToSubmit = validatedProducts.filter(
-      (row) => row.product_id && row.quantity
-    );
+    const finalProductsToSubmit = validatedProducts.filter((row) => row.product_id && row.quantity);
 
     if (finalProductsToSubmit.length === 0) {
       currentErrors.products = "يجب إضافة منتج واحد على الأقل للطلب.";
@@ -364,12 +316,12 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
 
 
   return (
-    <ModalWrapper show={show} onClose={() => onClose(false)} isVisible={isVisible} title={`تعديل الطلب: ${orderToEdit?.order_number || ""}`} maxWidth="max-w-4xl">
+    <ModalWrapper show={show} onClose={() => onClose(false)} isVisible={show} title={`تعديل الطلب: ${orderToEdit?.order_number || ""}`} maxWidth="max-w-4xl">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 text-right max-h-[80vh] overflow-y-auto">
-        {(loadingSalespersons || loadingCustomers || loadingProducts || loadingCurrencies || fetchingOrder) ? (
+        {fetchingData ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-2">جاري تحميل بيانات الطلب...</p>
+            <p className="mt-2 text-gray-400">جاري تحميل بيانات الطلب...</p>
           </div>
         ) : (
           <>
@@ -440,7 +392,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
                 )}
                 <div></div>
               </div>
-              <div className="max-h-96 pr-2 overflow-y-auto">
+              <div className="max-h-96 pr-2">
                 {productsInOrder.map((row, index) => (
                   <div key={index} className="grid grid-cols-product-row gap-3 items-center py-2 border-b border-gray-700 last:border-b-0">
                     <div className="col-span-1">
@@ -449,7 +401,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
                         value={row.product_id ? getProductOptionsForRows(index).find(p => p.value === row.product_id) : null}
                         onChange={(option) => handleProductInputChange(index, 'product_id', option?.value || "")}
                         options={getProductOptionsForRows(index)}
-                        placeholder={loadingProducts ? 'جاري التحميل...' : 'ابحث أو اختر...'}
+                        placeholder={'ابحث أو اختر...'}
                         error={row.errors.product}
                         className="w-full text-sm"
                         disabled={!selectedSalespersonType}
@@ -483,7 +435,6 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
                     )}
                     {selectedSalespersonType === "ws_rep" && (
                       <div className="col-span-1">
-                        {/* Fix 3: Add readOnly prop to remove console warning */}
                         <FormInputField
                           label=""
                           type="text"
@@ -511,7 +462,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
 
               {errors.products && <p className="text-red-500 text-xs mt-1 text-center">{errors.products}</p>}
 
-              <button type="button" onClick={handleAddRow} className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center justify-center gap-1 mt-3" disabled={loadingProducts || !selectedSalespersonType || productsInOrder.length >= products.length}>
+              <button type="button" onClick={handleAddRow} className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center justify-center gap-1 mt-3" disabled={productsInOrder.length >= products.length}>
                 <PlusIcon className="w-5 h-5 text-white" /> إضافة منتج
               </button>
             </div>
@@ -522,7 +473,6 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
               </div>
             )}
 
-            {/* Fix 4: Add readOnly prop to remove console warning */}
             <FormInputField
               label="حالة الطلب الحالية"
               type="text"
@@ -537,12 +487,11 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
 
         <div className="flex justify-between gap-3 mt-4">
           <button type="button" onClick={() => onClose(false)} className="bg-gray-600 hover:bg-gray-700 py-2 px-4 rounded flex-1" disabled={isLoading}>إلغاء</button>
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded flex-1" disabled={isLoading || fetchingOrder}>
+          <button type="submit" className="bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded flex-1" disabled={isLoading || fetchingData}>
             {isLoading ? "جاري الحفظ..." : "حفظ التعديلات"}
           </button>
         </div>
       </form>
-      {/* Fix 5: Remove the unnecessary <style jsx> tag */}
       <style>{`
         .grid-cols-product-row {
           grid-template-columns: ${selectedSalespersonType === "ws_rep" ? "2.5fr 1fr 1fr 1fr 0.5fr" : "2.5fr 1fr 0.5fr"};
