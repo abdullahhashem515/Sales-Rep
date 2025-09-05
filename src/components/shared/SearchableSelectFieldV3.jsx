@@ -70,7 +70,7 @@ export default function SearchableSelectFieldV3({
         <input
           type="text"
           placeholder={placeholder}
-          className={`pr-15 w-full p-2 rounded bg-gray-800 border ${error ? 'border-red-500' : 'border-gray-600'} text-sm text-gray-50`}
+          className={`pr-10 w-full p-2 rounded bg-gray-800 border ${error ? 'border-red-500' : 'border-gray-600'} text-sm text-gray-50`}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);

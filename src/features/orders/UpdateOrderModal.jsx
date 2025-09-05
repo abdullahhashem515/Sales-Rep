@@ -1,99 +1,107 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import FormInputField from "../../components/shared/FormInputField";
-import { PlusIcon, XMarkIcon, PencilIcon } from "@heroicons/react/24/solid";
-import AddProductToOrderModal from "./AddProductToOrderModal";
-import EditProductInOrderModal from "./EditProductInOrderModal";
-import OrderSummaryModal from "./OrderSummaryModal";
-import { toast } from "react-toastify";
-import { put, get } from "../../utils/apiService";
-
+import FormSelectField from "../../components/shared/FormSelectField";
+import SearchableSelectFieldV3 from "../../components/shared/SearchableSelectFieldV3";
 import SalespersonSelectField from "../../components/shared/SalespersonSelectField";
 import CustomerSelectField from "../../components/shared/CustomerSelectField";
+import { PlusIcon, XMarkIcon, PencilIcon } from "@heroicons/react/24/solid";
+import { toast } from "react-toastify";
+import { put, get } from "../../utils/apiService";
+import { AuthContext } from "../../contexts/AuthContext";
 
 export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [orderData, setOrderData] = useState({});
+  const { token } = useContext(AuthContext);
 
+  const [isVisible, setIsVisible] = useState(false);
   const [salespersonId, setSalespersonId] = useState("");
   const [selectedSalespersonType, setSelectedSalespersonType] = useState(null);
   const [customerId, setCustomerId] = useState(null);
-  const [selectedCustomerObject, setSelectedCustomerObject] = useState(null);
-  const [productsInOrder, setProductsInOrder] = useState([]);
-  const [orderNotes, setOrderNotes] = useState("");
+  const [currencyId, setCurrencyId] = useState("");
+  const [paymentType, setPaymentType] = useState("cash");
+  const [note, setNote] = useState("");
   const [orderDate, setOrderDate] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
+  const [orderSlug, setOrderSlug] = useState("");
+
+  const [productsInOrder, setProductsInOrder] = useState([]);
 
   const [salespersons, setSalespersons] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+
+  const [loadingSalespersons, setLoadingSalespersons] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingCurrencies, setLoadingCurrencies] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
   const [fetchingOrder, setFetchingOrder] = useState(false);
 
-  const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [showEditProductInOrderModal, setShowEditProductInOrderModal] =
-    useState(false);
-  const [productToEditInOrder, setProductToEditInOrder] = useState(null);
-
-  const [showOrderSummaryModal, setShowOrderSummaryModal] = useState(false);
-  const [currentOrderSummary, setCurrentOrderSummary] = useState(null);
-
+  // جلب البيانات الأساسية عند فتح المودال
   useEffect(() => {
-    if (!show) return;
+    if (!show) {
+      setIsVisible(false);
+      return;
+    }
 
     const fetchData = async () => {
-      setLoadingData(true);
-      try {
-        const token = localStorage.getItem("userToken");
-        if (!token) {
-          toast.error("انتهت صلاحية الجلسة");
-          return;
-        }
+      if (!token) {
+        toast.error("لا يوجد رمز مصادقة. يرجى تسجيل الدخول أولاً.");
+        return;
+      }
 
-        const salesRes = await get("admin/users", token);
+      setLoadingSalespersons(true);
+      setLoadingCustomers(true);
+      setLoadingProducts(true);
+      setLoadingCurrencies(true);
+
+      try {
+        const [salesRes, custRes, prodRes, currRes] = await Promise.all([
+          get("admin/users", token),
+          get("admin/customers", token),
+          get("admin/products", token),
+          get("admin/currencies", token),
+        ]);
+
         const reps = (salesRes.users || salesRes.data || []).filter(
-          (user) =>
-            user.type_user === "ws_rep" || user.type_user === "retail_rep"
+          (user) => user.type_user === "ws_rep" || user.type_user === "retail_rep"
         );
         setSalespersons(reps);
-
-        const custRes = await get("admin/customers", token);
-        setCustomers(
-          Array.isArray(custRes) ? custRes : custRes.customers || custRes.data || []
-        );
-
-        const prodRes = await get("admin/products", token);
-        setProducts(
-          Array.isArray(prodRes) ? prodRes : prodRes.products || prodRes.data || []
-        );
+        setCustomers(Array.isArray(custRes) ? custRes : custRes.customers || custRes.data || []);
+        setProducts(Array.isArray(prodRes) ? prodRes : prodRes.products || prodRes.data || []);
+        setCurrencies(Array.isArray(currRes) ? currRes : currRes.currencies || currRes.data || []);
       } catch (err) {
-        toast.error("حدث خطأ أثناء جلب البيانات الأساسية");
+        toast.error("فشل جلب البيانات الأساسية.");
+        console.error("Failed to fetch essential data:", err);
       } finally {
-        setLoadingData(false);
+        setLoadingSalespersons(false);
+        setLoadingCustomers(false);
+        setLoadingProducts(false);
+        setLoadingCurrencies(false);
       }
     };
 
     fetchData();
-  }, [show]);
+  }, [show, token]);
 
+  // جلب بيانات الطلب المحدد وتعبئة الحقول
   useEffect(() => {
-    if (!show || !orderToEdit || !orderToEdit.slug || loadingData) return;
+    if (!show || !orderToEdit?.slug) return;
 
-    const fetchOrder = async () => {
-      setFetchingOrder(true);
+    setFetchingOrder(true);
+    setIsVisible(false);
+
+    const fetchOrderDetails = async () => {
       try {
-        const token = localStorage.getItem("userToken");
-        
-        // التعديل هنا: استخدام خاصية type_order لتحديد المسار الصحيح
-        const endpoint = orderToEdit.type_order === "retail"
-          ? `admin/shipment-requests/${orderToEdit.slug}`
-          : `admin/orders/${orderToEdit.slug}`;
-        
+        const endpoint =
+          orderToEdit.type_order === "retail"
+            ? `admin/shipment-requests/${orderToEdit.slug}`
+            : `admin/orders/${orderToEdit.slug}`;
+
         const response = await get(endpoint, token);
-        
         const fetchedData = response.data || response["shipment-Request"];
 
         if (!response.status || !fetchedData) {
@@ -101,57 +109,53 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
         }
 
         const fetchedOrder = fetchedData;
-        setOrderData(fetchedOrder);
-        setIsVisible(true);
+        const salesperson = salespersons.find(sp => sp.id === fetchedOrder.user_id);
 
-        const spId = Number(fetchedOrder.user_id || "");
-        setSalespersonId(spId);
-
-        const spType =
-          salespersons.find((sp) => sp.id === spId)?.type_user ||
-          fetchedOrder.user?.type_user ||
-          null;
-        setSelectedSalespersonType(spType);
-
-        if (fetchedOrder.customer) {
-          const customerObj = customers.find(c => c.id === fetchedOrder.customer.id);
-          setCustomerId(customerObj ? customerObj.id : null);
-          setSelectedCustomerObject(customerObj ? { value: customerObj.id, label: customerObj.name } : null);
-        } else {
-          setCustomerId(null);
-          setSelectedCustomerObject(null);
-        }
-        
-        setProductsInOrder(
-          fetchedOrder.items
-            ? fetchedOrder.items.map((p) => ({
-                product_id: p.product_id,
-                quantity: Number(p.quantity),
-                name: p.name,
-                unit: p.unit || "",
-              }))
-            : []
+        setOrderSlug(fetchedOrder.slug);
+        setSalespersonId(fetchedOrder.user_id || "");
+        setSelectedSalespersonType(
+          salesperson?.type_user || fetchedOrder.user?.type_user || null
         );
-
+        setCustomerId(fetchedOrder.customer_id || null);
+        setCurrencyId(fetchedOrder.currency_id || "");
+        setPaymentType(fetchedOrder.payment_type || "cash");
+        setNote(fetchedOrder.note || "");
+        setOrderDate(fetchedOrder.order_date || fetchedOrder.shipment_date || "");
         setOrderStatus(fetchedOrder.status || "");
-        setOrderNotes(fetchedOrder.note || "");
-        setOrderDate(
-          fetchedOrder.order_date || fetchedOrder.shipment_date || new Date().toISOString().split("T")[0]
-        );
-        setErrors({});
+
+        const productsWithDetails = fetchedOrder.items.map((item) => {
+          const productDetail = products.find((p) => p.id === item.product_id);
+          const price = item.unit_price || 0;
+          const subtotal = price * item.quantity;
+          
+          // Fix 1: Normalize the fetched price string
+          const normalizedPrice = parseFloat(price).toString();
+
+          return {
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: normalizedPrice, 
+            name: productDetail?.name || item.name || "",
+            unit: productDetail?.unit || item.unit || "",
+            subtotal: subtotal.toFixed(2),
+            errors: {},
+          };
+        });
+        setProductsInOrder(productsWithDetails);
+        setIsVisible(true);
       } catch (err) {
         console.error("Failed to fetch order details:", err);
-        toast.error("فشل في جلب بيانات الطلب: " + err.message);
+        toast.error("فشل في جلب بيانات الطلب: " + (err.message || "حدث خطأ غير متوقع"));
         onClose(false);
       } finally {
         setFetchingOrder(false);
       }
     };
 
-    if (orderToEdit.slug && !loadingData) {
-      fetchOrder();
+    if (salespersons.length > 0 && customers.length > 0 && products.length > 0 && currencies.length > 0) {
+      fetchOrderDetails();
     }
-  }, [show, orderToEdit, salespersons, customers, loadingData, onClose]);
+  }, [show, orderToEdit, token, salespersons, customers, products, currencies, onClose]);
 
   const salespersonOptions = useMemo(
     () =>
@@ -163,7 +167,7 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
     [salespersons]
   );
 
-  const customerOptions = useMemo(() => {
+  const filteredCustomerOptions = useMemo(() => {
     if (selectedSalespersonType === "ws_rep" && salespersonId) {
       return customers
         .filter((c) => c.user_id === salespersonId)
@@ -172,254 +176,383 @@ export default function UpdateOrderModal({ show, onClose, orderToEdit }) {
     return [];
   }, [customers, salespersonId, selectedSalespersonType]);
 
-  const handleAddProductClick = () => setShowAddProductModal(true);
-  const handleRemoveProduct = (id) =>
-    setProductsInOrder((prev) => prev.filter((p) => p.product_id !== id));
+  const currencyOptions = useMemo(() => {
+    return currencies.map(curr => ({ value: curr.id, label: curr.name }));
+  }, [currencies]);
 
-  const handleAddProductConfirm = (newProduct) => {
-    const exists = productsInOrder.find((p) => p.product_id === newProduct.product_id);
-    if (exists) {
-      setProductsInOrder((prev) =>
-        prev.map((p) =>
-          p.product_id === newProduct.product_id
-            ? { ...p, quantity: p.quantity + newProduct.quantity }
-            : p
-        )
-      );
-      toast.info(`تم تحديث كمية المنتج "${newProduct.name}"`);
-    } else {
-      setProductsInOrder((prev) => [...prev, newProduct]);
-      toast.success(`تم إضافة المنتج "${newProduct.name}"`);
+  const paymentTypeOptions = [
+    { value: 'cash', label: 'نقد' },
+    { value: 'credit', label: 'آجل' },
+  ];
+
+  const getProductPricesOptions = (productId) => {
+    if (selectedSalespersonType === "retail_rep") {
+      return [{ value: "0", label: "0" }];
     }
-    setShowAddProductModal(false);
+    const currentProduct = products.find(p => p.id === productId);
+    if (!currentProduct || !currentProduct.prices_by_currency || !currencyId) {
+      return [];
+    }
+    const selectedCurrencyCode = currencies.find(c => c.id === currencyId)?.code;
+    if (!selectedCurrencyCode) {
+      return [];
+    }
+    const currencyPrices = currentProduct.prices_by_currency[selectedCurrencyCode];
+    if (!currencyPrices || !Array.isArray(currencyPrices)) {
+      return [];
+    }
+    return currencyPrices.map(price => ({
+      // Fix 2: Normalize the option value string
+      value: String(price.price),
+      label: `${price.price} ${selectedCurrencyCode}`
+    }));
   };
 
-  const handleEditProductInOrderClick = (product) => {
-    setProductToEditInOrder(product);
-    setShowEditProductInOrderModal(true);
+  const selectedProductIds = useMemo(() => {
+    return productsInOrder.map(row => row.product_id).filter(Boolean);
+  }, [productsInOrder]);
+
+  const getProductOptionsForRows = (currentIndex) => {
+    const otherSelectedIds = selectedProductIds.filter((_, index) => index !== currentIndex);
+    return products
+      .filter(p => !otherSelectedIds.includes(p.id))
+      .map(p => ({
+        value: p.id,
+        label: `${p.name} (${p.unit})`
+      }));
   };
 
-  const handleUpdateProductInOrderConfirm = (updatedProduct) => {
-    setProductsInOrder((prev) =>
-      prev.map((p) =>
-        p.product_id === updatedProduct.product_id ? updatedProduct : p
-      )
-    );
-    toast.success(`تم تحديث المنتج "${updatedProduct.name}"`);
-    setShowEditProductInOrderModal(false);
-    setProductToEditInOrder(null);
-  };
+  const grandTotal = useMemo(() => {
+    return productsInOrder.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0).toFixed(2);
+  }, [productsInOrder]);
 
-  const handleViewOrderSummary = () => {
-    if (!salespersonId || (selectedSalespersonType === "ws_rep" && !customerId)) {
-      toast.error("الرجاء اختيار مندوب صالح وعميل إذا كان طلب جملة");
-      return;
-    }
-    if (productsInOrder.length === 0) {
-      toast.info("لا توجد منتجات في الطلب لعرض الملخص");
-      return;
-    }
+  const handleProductInputChange = (index, field, value) => {
+    setProductsInOrder(prevRows => {
+      const newRows = [...prevRows];
+      let row = { ...newRows[index] };
 
-    const salespersonName = salespersons.find((sp) => sp.id === salespersonId)?.name || "غير محدد";
-    const customerName = customers.find((c) => c.id === customerId)?.name || "N/A";
+      if (field === "product_id") {
+        row.product_id = value;
+        row.quantity = "";
+        row.subtotal = "0.00";
+        const productDetails = products.find(p => p.id === value);
+        row.name = productDetails?.name || "";
+        row.unit = productDetails?.unit || "";
 
-    setCurrentOrderSummary({
-      products: productsInOrder,
-      salespersonName,
-      customerName: selectedSalespersonType === "ws_rep" ? customerName : "لا ينطبق",
+        if (selectedSalespersonType === "retail_rep") {
+          row.price = "0";
+        } else {
+          const pricesOptions = getProductPricesOptions(value);
+          row.price = pricesOptions.length > 0 ? pricesOptions[0].value : "";
+        }
+      } else if (field === "quantity") {
+        row.quantity = value;
+      } else if (field === "price") {
+        row.price = value;
+      }
+
+      const qty = parseFloat(row.quantity);
+      const price = parseFloat(row.price);
+      row.subtotal = (!isNaN(qty) && !isNaN(price)) ? (qty * price).toFixed(2) : "0.00";
+      row.errors = { ...row.errors, [field]: undefined };
+
+      newRows[index] = { ...row };
+      return newRows;
     });
-    setShowOrderSummaryModal(true);
   };
 
+  const handleAddRow = () => {
+    setProductsInOrder(prevRows => [
+      ...prevRows,
+      { product_id: "", quantity: "", price: "", name: "", unit: "", subtotal: "0.00", errors: {} },
+    ]);
+  };
+
+  const handleRemoveRow = (indexToRemove) => {
+    setProductsInOrder(prevRows => prevRows.filter((_, index) => index !== indexToRemove));
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
-    const currentErrors = {};
-    if (!salespersonId) currentErrors.salespersonId = "الرجاء اختيار مندوب مبيعات";
-    if (selectedSalespersonType === "ws_rep" && !customerId)
-      currentErrors.customerId = "الرجاء اختيار عميل لمندوب الجملة";
-    if (productsInOrder.length === 0)
-      currentErrors.products = "يجب إضافة منتج واحد على الأقل";
-    if (!orderDate) currentErrors.orderDate = "الرجاء تحديد تاريخ الطلب";
+    let currentErrors = {};
+    let hasProductErrors = false;
 
-    if (Object.keys(currentErrors).length > 0) {
+    if (!salespersonId) currentErrors.salespersonId = "الرجاء اختيار مندوب مبيعات صالح.";
+    
+    if (selectedSalespersonType === "ws_rep") {
+      if (!customerId) currentErrors.customerId = "الرجاء اختيار عميل.";
+      if (!currencyId) currentErrors.currencyId = "الرجاء اختيار العملة.";
+    }
+
+    const validatedProducts = productsInOrder.map((row) => {
+      let rowErrors = {};
+      if (row.product_id || row.quantity) {
+        if (!row.product_id) rowErrors.product = "الرجاء اختيار منتج.";
+        if (!row.quantity || isNaN(parseFloat(row.quantity)) || parseFloat(row.quantity) <= 0) {
+          rowErrors.quantity = "الكمية غير صالحة.";
+        }
+        if (selectedSalespersonType === "ws_rep" && (!row.price || isNaN(parseFloat(row.price)) || parseFloat(row.price) <= 0)) {
+          rowErrors.price = "الرجاء اختيار سعر صالح.";
+        }
+      }
+      if (Object.keys(rowErrors).length > 0) hasProductErrors = true;
+      return { ...row, errors: rowErrors };
+    });
+
+    const finalProductsToSubmit = validatedProducts.filter(
+      (row) => row.product_id && row.quantity
+    );
+
+    if (finalProductsToSubmit.length === 0) {
+      currentErrors.products = "يجب إضافة منتج واحد على الأقل للطلب.";
+      hasProductErrors = true;
+    }
+
+    setProductsInOrder(validatedProducts);
+
+    if (Object.keys(currentErrors).length > 0 || hasProductErrors) {
       setErrors(currentErrors);
-      toast.error("يرجى تصحيح الأخطاء في النموذج");
-      return;
+      return toast.error("يرجى تصحيح الأخطاء في النموذج.");
     }
 
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem("userToken");
-      if (!token) throw new Error("انتهت صلاحية الجلسة");
+      let endpoint = "";
+      let payload = {};
 
-      const payload =
-        orderToEdit.type_order === "retail"
-          ? {
-              user_id: salespersonId,
-              shipment_date: orderDate,
-              items: productsInOrder.map((p) => ({ product_id: p.product_id, quantity: p.quantity })),
-              note: orderNotes,
-            }
-          : {
-              user_id: salespersonId,
-              customer_id: customerId,
-              order_date: orderDate,
-              items: productsInOrder.map((p) => ({ product_id: p.product_id, quantity: p.quantity })),
-              note: orderNotes,
-            };
-
-      const endpoint =
-        orderToEdit.type_order === "retail"
-          ? `admin/shipment-requests/${orderData.slug}`
-          : `admin/orders/${orderData.slug}`;
-
+      if (selectedSalespersonType === "retail_rep") {
+        endpoint = `admin/shipment-requests/${orderSlug}`;
+        payload = {
+          user_id: salespersonId,
+          shipment_date: orderDate,
+          items: finalProductsToSubmit.map((p) => ({ product_id: parseInt(p.product_id), quantity: parseFloat(p.quantity) })),
+          note: note || null,
+        };
+      } else {
+        endpoint = `admin/orders/${orderSlug}`;
+        payload = {
+          user_id: salespersonId,
+          customer_id: customerId,
+          currency_id: currencyId,
+          payment_type: paymentType,
+          note,
+          order_date: orderDate,
+          items: finalProductsToSubmit.map((p) => ({ product_id: parseInt(p.product_id), quantity: parseFloat(p.quantity), unit_price: parseFloat(p.price) })),
+        };
+      }
+      
       const response = await put(endpoint, payload, token);
-
-      if (!response.status) throw new Error(response.message || "فشل في تحديث الطلب");
-
-      toast.success("تم تحديث الطلب بنجاح");
-      onClose(true);
+      
+      if (response?.status) {
+        toast.success("تم تحديث الطلبية بنجاح!");
+        onClose(true);
+      } else {
+        const msg = response?.message || "حدث خطأ غير متوقع عند تحديث الطلب.";
+        setErrors({ general: msg });
+        toast.error(msg);
+      }
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "حدث خطأ أثناء تحديث الطلب");
+      setErrors({ general: "حدث خطأ غير متوقع عند تحديث الطلب." });
+      toast.error("حدث خطأ غير متوقع عند تحديث الطلب.");
     } finally {
       setIsLoading(false);
     }
   };
 
+
   return (
-    <ModalWrapper show={show} onClose={() => onClose(false)} isVisible={isVisible} title={`تعديل الطلب: ${orderData?.order_number || ""}`} maxWidth="max-w-4xl">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 text-right">
-        {loadingData || fetchingOrder ? (
+    <ModalWrapper show={show} onClose={() => onClose(false)} isVisible={isVisible} title={`تعديل الطلب: ${orderToEdit?.order_number || ""}`} maxWidth="max-w-4xl">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 text-right max-h-[80vh] overflow-y-auto">
+        {(loadingSalespersons || loadingCustomers || loadingProducts || loadingCurrencies || fetchingOrder) ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
             <p className="mt-2">جاري تحميل بيانات الطلب...</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <SalespersonSelectField
                 label="المندوب"
-                value={
-                  salespersonId
-                    ? salespersonOptions.find((sp) => sp.value === salespersonId)
-                    : null
-                }
+                value={salespersonId ? salespersonOptions.find(sp => sp.value === salespersonId) : null}
                 onChange={(option) => {
                   setSalespersonId(option?.value || "");
                   setSelectedSalespersonType(option?.type_user || null);
                   setCustomerId(null);
-                  setSelectedCustomerObject(null);
+                  setCurrencyId("");
+                  setPaymentType("cash");
+                  setProductsInOrder([
+                    { product_id: "", quantity: "", price: "", name: "", unit: "", subtotal: "0.00", errors: {} },
+                  ]);
                 }}
                 options={salespersonOptions}
                 error={errors.salespersonId}
+                disabled={true}
               />
 
               {selectedSalespersonType === "ws_rep" && (
-                <CustomerSelectField
-                  label="العميل"
-                  value={selectedCustomerObject}
-                  onChange={(opt) => {
-                      setCustomerId(opt?.value || null);
-                      setSelectedCustomerObject(opt);
-                  }}
-                  options={customerOptions}
-                  error={errors.customerId}
-                />
+                <>
+                  <CustomerSelectField
+                    label="العميل"
+                    value={customerId ? filteredCustomerOptions.find(c => c.value === customerId) : null}
+                    onChange={(option) => setCustomerId(option?.value || null)}
+                    options={filteredCustomerOptions}
+                    error={errors.customerId}
+                  />
+                  <SearchableSelectFieldV3
+                    label="العملة"
+                    value={currencyId ? currencyOptions.find(c => c.value === currencyId) : null}
+                    onChange={(option) => {
+                      setCurrencyId(option?.value || "");
+                      setProductsInOrder([
+                        { product_id: "", quantity: "", price: "", name: "", unit: "", subtotal: "0.00", errors: {} },
+                      ]);
+                    }}
+                    options={currencyOptions}
+                    error={errors.currencyId}
+                  />
+                  <FormSelectField
+                    label="نوع الدفع"
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                    options={paymentTypeOptions}
+                  />
+                </>
               )}
 
-              <FormInputField
-                label="تاريخ الطلب"
-                type="date"
-                value={orderDate}
-                onChange={(e) => setOrderDate(e.target.value)}
-                error={errors.orderDate}
-              />
-              <FormInputField
-                label="ملاحظات الطلب"
-                type="text"
-                placeholder="أدخل ملاحظات حول الطلب (اختياري)"
-                value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
-                error={errors.orderNotes}
-              />
+              <FormInputField label="تاريخ الطلب" type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} error={errors.orderDate} />
+              <FormInputField label="ملاحظات" type="text" placeholder="ملاحظات حول الطلب" value={note} onChange={(e) => setNote(e.target.value)} error={errors.note} />
             </div>
 
-            <div className="border border-gray-700 p-4 rounded-lg flex flex-col gap-3">
+            {/* Product Input Section */}
+            <div className="border border-gray-700 p-3 rounded-lg flex flex-col gap-3 mt-4">
               <h4 className="text-lg font-bold border-b border-gray-700 pb-2 mb-2">المنتجات في الطلب</h4>
-              <div className="max-h-64 overflow-y-auto pr-2">
-                {productsInOrder.length > 0 ? (
-                  productsInOrder.map((product) => (
-                    <div key={product.product_id} className="flex justify-between items-center bg-gray-700 p-3 rounded-md mb-2">
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg">{product.name} {product.unit ? `(${product.unit})` : ""}</p>
-                        <p className="text-gray-300 text-sm">الكمية: {product.quantity}</p>
+              <div className="grid grid-cols-product-row text-right font-semibold text-gray-400 text-sm border-b border-gray-700 pb-2">
+                <div>المنتج</div>
+                <div>الكمية</div>
+                {selectedSalespersonType === "ws_rep" && (
+                  <div>سعر الوحدة</div>
+                )}
+                {selectedSalespersonType === "ws_rep" && (
+                  <div>الإجمالي</div>
+                )}
+                <div></div>
+              </div>
+              <div className="max-h-96 pr-2 overflow-y-auto">
+                {productsInOrder.map((row, index) => (
+                  <div key={index} className="grid grid-cols-product-row gap-3 items-center py-2 border-b border-gray-700 last:border-b-0">
+                    <div className="col-span-1">
+                      <SearchableSelectFieldV3
+                        label=""
+                        value={row.product_id ? getProductOptionsForRows(index).find(p => p.value === row.product_id) : null}
+                        onChange={(option) => handleProductInputChange(index, 'product_id', option?.value || "")}
+                        options={getProductOptionsForRows(index)}
+                        placeholder={loadingProducts ? 'جاري التحميل...' : 'ابحث أو اختر...'}
+                        error={row.errors.product}
+                        className="w-full text-sm"
+                        disabled={!selectedSalespersonType}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <FormInputField
+                        label=""
+                        type="number"
+                        value={row.quantity}
+                        onChange={(e) => handleProductInputChange(index, 'quantity', e.target.value)}
+                        error={row.errors.quantity}
+                        placeholder="أدخل الكمية"
+                        className="text-sm"
+                        disabled={!row.product_id}
+                      />
+                    </div>
+                    {selectedSalespersonType === "ws_rep" && (
+                      <div className="col-span-1">
+                        <SearchableSelectFieldV3
+                          label=""
+                          value={row.price ? getProductPricesOptions(row.product_id).find(p => p.value === row.price) : null}
+                          onChange={(option) => handleProductInputChange(index, 'price', option?.value || "")}
+                          options={getProductPricesOptions(row.product_id)}
+                          placeholder="اختر السعر"
+                          error={row.errors.price}
+                          className="text-sm"
+                          disabled={!row.product_id || !currencyId || getProductPricesOptions(row.product_id).length === 0}
+                        />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => handleEditProductInOrderClick(product)} className="bg-yellow-500 hover:bg-yellow-600 p-2 rounded-full flex-shrink-0" title="تعديل المنتج">
-                          <PencilIcon className="w-5 h-5 text-white" />
-                        </button>
-                        <button type="button" onClick={() => handleRemoveProduct(product.product_id)} className="bg-red-500 hover:bg-red-600 p-2 rounded-full flex-shrink-0" title="حذف المنتج">
+                    )}
+                    {selectedSalespersonType === "ws_rep" && (
+                      <div className="col-span-1">
+                        {/* Fix 3: Add readOnly prop to remove console warning */}
+                        <FormInputField
+                          label=""
+                          type="text"
+                          value={row.subtotal}
+                          readOnly
+                          className="bg-gray-800 opacity-80 text-sm"
+                        />
+                      </div>
+                    )}
+                    <div className="col-span-1 flex justify-center">
+                      {productsInOrder.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(index)}
+                          className="bg-red-500 hover:bg-red-600 p-2 rounded-full flex-shrink-0"
+                          title="إزالة الصف"
+                        >
                           <XMarkIcon className="w-5 h-5 text-white" />
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center py-4">لا توجد منتجات في الطلب بعد.</p>
-                )}
+                  </div>
+                ))}
               </div>
+
               {errors.products && <p className="text-red-500 text-xs mt-1 text-center">{errors.products}</p>}
-              <button type="button" onClick={handleAddProductClick} className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center justify-center gap-1 mt-3">
-                <PlusIcon className="w-5 h-5 text-white" />
-                <span>إضافة منتج</span>
+
+              <button type="button" onClick={handleAddRow} className="bg-green-500 hover:bg-green-600 py-2 px-4 rounded flex items-center justify-center gap-1 mt-3" disabled={loadingProducts || !selectedSalespersonType || productsInOrder.length >= products.length}>
+                <PlusIcon className="w-5 h-5 text-white" /> إضافة منتج
               </button>
             </div>
 
+            {selectedSalespersonType === "ws_rep" && (
+              <div className="text-lg font-bold text-accentColor text-left mt-4 p-2 bg-gray-800 rounded-lg shadow-md">
+                الإجمالي الكلي: {grandTotal} {currencies.find(c => c.id === currencyId)?.code || ''}
+              </div>
+            )}
+
+            {/* Fix 4: Add readOnly prop to remove console warning */}
             <FormInputField
               label="حالة الطلب الحالية"
               type="text"
-              value={
-                orderStatus === "pending" ? "معلق" :
-                orderStatus === "accepted" ? "مقبول" :
-                orderStatus === "canceled" ? "مرفوض" :
-                orderStatus
-              }
+              value={orderStatus === "pending" ? "معلق" : orderStatus === "accepted" ? "مقبول" : orderStatus === "canceled" ? "مرفوض" : orderStatus}
               readOnly
               className="pointer-events-none opacity-70"
             />
-
-            <div className="flex justify-between gap-3 mt-4">
-              <button type="button" onClick={() => onClose(false)} className="bg-gray-600 hover:bg-gray-700 py-2 px-4 rounded flex-1" disabled={isLoading}>إلغاء</button>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded flex-1" disabled={isLoading}>{isLoading ? "جاري الحفظ..." : "حفظ التعديلات"}</button>
-              <button type="button" onClick={handleViewOrderSummary} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded flex-1" disabled={productsInOrder.length === 0 || !salespersonId || (selectedSalespersonType === "ws_rep" && !customerId)}>ملخص الطلبية</button>
-            </div>
           </>
         )}
+
+        {errors.general && <p className="text-red-500 text-xs mt-1 text-center">{errors.general}</p>}
+
+        <div className="flex justify-between gap-3 mt-4">
+          <button type="button" onClick={() => onClose(false)} className="bg-gray-600 hover:bg-gray-700 py-2 px-4 rounded flex-1" disabled={isLoading}>إلغاء</button>
+          <button type="submit" className="bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded flex-1" disabled={isLoading || fetchingOrder}>
+            {isLoading ? "جاري الحفظ..." : "حفظ التعديلات"}
+          </button>
+        </div>
       </form>
-
-      <AddProductToOrderModal
-        show={showAddProductModal}
-        onClose={() => setShowAddProductModal(false)}
-        onAddProductConfirm={handleAddProductConfirm}
-        availableProducts={products}
-      />
-
-      <EditProductInOrderModal
-        show={showEditProductInOrderModal}
-        onClose={() => setShowEditProductInOrderModal(false)}
-        onUpdateProductConfirm={handleUpdateProductInOrderConfirm}
-        productToEdit={productToEditInOrder}
-        allAvailableProducts={products}
-      />
-
-      <OrderSummaryModal
-        show={showOrderSummaryModal}
-        onClose={() => setShowOrderSummaryModal(false)}
-        orderSummary={currentOrderSummary}
-      />
+      {/* Fix 5: Remove the unnecessary <style jsx> tag */}
+      <style>{`
+        .grid-cols-product-row {
+          grid-template-columns: ${selectedSalespersonType === "ws_rep" ? "2.5fr 1fr 1fr 1fr 0.5fr" : "2.5fr 1fr 0.5fr"};
+        }
+        @media (max-width: 768px) {
+          .grid-cols-product-row {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </ModalWrapper>
   );
 }

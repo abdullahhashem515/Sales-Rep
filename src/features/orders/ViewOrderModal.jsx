@@ -1,8 +1,8 @@
 // src/pages/orders/ViewOrderModal.jsx
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import UpdateOrderStatusWithNoteModal from "./UpdateOrderStatusWithNoteModal";
-import OrderPrintPreviewModal from "./OrderPrintPreviewModal"; // استدعاء نافذة المعاينة
+import OrderPrintPreviewModal from "./OrderPrintPreviewModal";
 import { AuthContext } from "../../contexts/AuthContext";
 import { toast } from "react-toastify";
 
@@ -16,39 +16,48 @@ export default function ViewOrderModal({
   const [isVisible, setIsVisible] = useState(false);
   const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [statusToUpdate, setStatusToUpdate] = useState(null);
-  const [showPrintModal, setShowPrintModal] = useState(false); // حالة نافذة المعاينة
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     setIsVisible(show);
   }, [show]);
 
-  // فتح نافذة تحديث الحالة
   const handleOpenUpdateStatusModal = (status) => {
     setStatusToUpdate(status);
     setShowUpdateStatusModal(true);
   };
 
-  // إغلاق نافذة تحديث الحالة
   const handleCloseUpdateStatusModal = (isSuccess, updatedOrder) => {
     setShowUpdateStatusModal(false);
     setStatusToUpdate(null);
 
     if (isSuccess && updatedOrder) {
       if (onUpdateOrderStatus) {
-        onUpdateOrderStatus(updatedOrder); // تحديث الطلب في القائمة
+        onUpdateOrderStatus(updatedOrder);
         toast.success(`تم تحديث حالة الطلب بنجاح`);
       }
-      onClose(true); // اغلاق نافذة تفاصيل الطلب بعد التحديث
+      onClose(true);
     }
   };
 
+  const grandTotal = useMemo(() => {
+    if (order?.type_order !== "wholesale") {
+      return null;
+    }
+    return (order.products || [])
+      .reduce(
+        (sum, item) =>
+          sum + (parseFloat(item.unit_price) * parseFloat(item.quantity) || 0),
+        0
+      )
+      .toFixed(2);
+  }, [order]);
+
   if (!show || !order) return null;
 
-  // تحضير البيانات للعرض
   const customerName = order.customer_name || order.customer_id || "-";
   const salespersonName = order.salesperson_name || order.user_id || "-";
 
-  // تحديد لون ونص الحالة
   const getStatusDetails = (status) => {
     switch (status) {
       case "accepted":
@@ -70,17 +79,18 @@ export default function ViewOrderModal({
         show={show}
         onClose={() => onClose(false)}
         isVisible={isVisible}
-        title={`تفاصيل الطلب رقم: ${order.order_id || "غير معروف"}`}
+        title={`تفاصيل الطلب رقم: ${
+          order.order_number || order.shipment_number || "غير معروف"
+        }`}
         maxWidth="max-w-4xl"
       >
         <div className="flex flex-col gap-4 p-4 text-right text-gray-200">
-          {/* المعلومات الأساسية */}
           <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-2 gap-x-4 text-sm">
             <p>
               <span className="font-semibold text-gray-300">تاريخ الطلب:</span>{" "}
-              {new Date(order.order_date || order.shipment_date).toLocaleDateString(
-                "ar-SA"
-              )}
+              {new Date(
+                order.order_date || order.shipment_date
+              ).toLocaleDateString("ar-SA")}
             </p>
             <p>
               <span className="font-semibold text-gray-300">العميل:</span>{" "}
@@ -102,9 +112,20 @@ export default function ViewOrderModal({
               <span className="font-semibold text-gray-300">نوع الطلب:</span>{" "}
               {order.type_order === "wholesale" ? "جملة" : "تجزئة"}
             </p>
+            {order.type_order === "wholesale" && order.currency && (
+              <p>
+                <span className="font-semibold text-gray-300">العملة:</span>{" "}
+                {order.currency.name}
+              </p>
+            )}
+            {order.type_order === "wholesale" && order.payment_type && (
+              <p>
+                <span className="font-semibold text-gray-300">نوع الدفع:</span>{" "}
+                {order.payment_type === "cash" ? "نقد" : "آجل"}
+              </p>
+            )}
           </div>
 
-          {/* المنتجات */}
           <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 max-h-52 overflow-y-auto">
             <h3 className="text-xl font-bold text-accentColor mb-3">
               المنتجات في الطلب:
@@ -115,16 +136,36 @@ export default function ViewOrderModal({
                   <tr className="border-b border-gray-600">
                     <th className="py-2 pr-2 font-semibold text-gray-300">المنتج</th>
                     <th className="py-2 font-semibold text-gray-300">الكمية</th>
+                    {order.type_order === "wholesale" && (
+                      <>
+                        <th className="py-2 font-semibold text-gray-300">سعر الوحدة</th>
+                        <th className="py-2 font-semibold text-gray-300">الإجمالي</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {order.products.map((product, idx) => (
-                    <tr key={idx} className="border-b border-gray-700 last:border-b-0">
+                  {(order.products || []).map((item, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-gray-700 last:border-b-0"
+                    >
                       <td className="py-2 pr-2">
-                        {product.name || `منتج ${product.product_id}`}
-                        {product.unit && ` ${product.unit}`}
+                        {item.name || `منتج ${item.product_id}`}
+                        {item.unit && ` (${item.unit})`}
                       </td>
-                      <td className="py-2">{product.quantity}</td>
+                      <td className="py-2">{item.quantity}</td>
+                      {order.type_order === "wholesale" && (
+                        <>
+                          <td className="py-2">{item.unit_price}</td>
+                          <td className="py-2">
+                            {(
+                              parseFloat(item.unit_price) *
+                                parseFloat(item.quantity) || 0
+                            ).toFixed(2)}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -136,7 +177,13 @@ export default function ViewOrderModal({
             )}
           </div>
 
-          {/* الملاحظات والإجراءات */}
+          {order.type_order === "wholesale" && (
+            <div className="text-left font-bold text-accentColor text-xl">
+              <span className="font-semibold text-gray-300">الإجمالي الكلي:</span>{" "}
+              {grandTotal} {order.currency?.code || ""}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             {order.note && (
               <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700">
@@ -147,7 +194,6 @@ export default function ViewOrderModal({
               </div>
             )}
 
-            {/* أزرار قبول/رفض الطلب إذا الحالة معلق */}
             {order.status === "pending" && (
               <div className="flex justify-left gap-3">
                 <button
@@ -167,7 +213,6 @@ export default function ViewOrderModal({
               </div>
             )}
 
-            {/* ملاحظة الحالة بعد قبول أو رفض الطلب */}
             {order.status !== "pending" && order.status_note && (
               <div className="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 text-sm">
                 <h3 className="font-semibold text-accentColor mb-1">
@@ -176,36 +221,40 @@ export default function ViewOrderModal({
                 <p>{order.status_note}</p>
               </div>
             )}
-
-            {/* زر معاينة للطباعة */}
-            {order.status === "accepted" && (
-              <div className="flex justify-left mt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPrintModal(true)}
-                  className="bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded flex items-center gap-1"
-                >
-                  معاينة للطباعة
-                </button>
-              </div>
-            )}
           </div>
+
+          {order.status === "accepted" && (
+            <div className="flex justify-left mt-3">
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                className="bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded flex items-center gap-1"
+              >
+                معاينة للطباعة
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* نافذة تحديث الحالة */}
         {showUpdateStatusModal && (
           <UpdateOrderStatusWithNoteModal
             show={showUpdateStatusModal}
             onClose={handleCloseUpdateStatusModal}
             order={order}
             newStatus={statusToUpdate}
-            onUpdateSuccess={(orderId, updatedStatus, notes, userId, timestamp) => {
+            onUpdateSuccess={(
+              orderId,
+              updatedStatus,
+              notes,
+              userId,
+              timestamp
+            ) => {
               const updatedOrder = {
                 ...order,
                 status: updatedStatus,
                 status_note: notes,
                 processed_at: timestamp,
-                salesperson_name: "مندوب 1", // أو القيمة الحقيقية
+                salesperson_name: "مندوب 1",
               };
               handleCloseUpdateStatusModal(true, updatedOrder);
             }}
@@ -213,7 +262,6 @@ export default function ViewOrderModal({
         )}
       </ModalWrapper>
 
-      {/* نافذة المعاينة للطباعة */}
       <OrderPrintPreviewModal
         show={showPrintModal}
         onClose={setShowPrintModal}
