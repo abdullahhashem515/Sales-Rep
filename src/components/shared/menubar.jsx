@@ -111,13 +111,13 @@ export function Menubar() {
             </ListItemPrefix>
             الطلبات
             <ListItemSuffix>
-              <Chip
+              {/* <Chip
                 value="14"
                 size="sm"
                 variant="ghost"
                 color="blue-gray"
                 className="rounded accentColor mr-5"
-              />
+              /> */}
             </ListItemSuffix>
           </ListItem>
 
