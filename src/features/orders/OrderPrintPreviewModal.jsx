@@ -1,5 +1,5 @@
 // src/pages/orders/OrderPrintPreviewModal.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import logo from "../../assets/logo.png";
 
@@ -22,6 +22,19 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
       return dateString;
     }
   };
+
+  const grandTotal = useMemo(() => {
+    if (order?.type_order !== "wholesale") {
+      return 0;
+    }
+    return (order.products || [])
+      .reduce(
+        (sum, item) =>
+          sum + (parseFloat(item.unit_price) * parseFloat(item.quantity) || 0),
+        0
+      )
+      .toFixed(2);
+  }, [order]);
 
   if (!order) {
     return (
@@ -48,7 +61,6 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
       maxWidth="max-w-3xl"
     >
       <div className="p-4 bg-white text-gray-900 rounded-lg shadow-lg overflow-y-auto max-h-[80vh]">
-
         {/* Header */}
         <div className="flex flex-col items-center justify-center p-4">
           <div className="flex items-center justify-between w-full pl-8 pr-5">
@@ -71,11 +83,9 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
 
           <div className="relative w-full flex items-center my-2">
             <div className="flex-1 border-t border-gray-400"></div>
-
             <h3 className="px-4 text-gray-800 font-bold text-center rounded-full border-2 border-gray-400">
               تفاصيل الطلب
             </h3>
-
             <div className="flex-1 border-t border-gray-400"></div>
           </div>
 
@@ -133,6 +143,12 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
                 <th className="py-2 px-2 border border-gray-300">م</th>
                 <th className="py-2 px-2 border border-gray-300">المنتج</th>
                 <th className="py-2 px-2 border border-gray-300">الكمية</th>
+                {order.type_order === "wholesale" && (
+                  <>
+                    <th className="py-2 px-2 border border-gray-300">سعر الوحدة</th>
+                    <th className="py-2 px-2 border border-gray-300">الإجمالي</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -147,11 +163,21 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
                       {product.unit || ""}
                     </td>
                     <td className="py-1 px-2 text-center">{product.quantity}</td>
+                    {order.type_order === "wholesale" && (
+                      <>
+                        <td className="py-1 px-2 border-r border-gray-200 text-center">
+                          {product.unit_price}
+                        </td>
+                        <td className="py-1 px-2 text-center">
+                          {(parseFloat(product.unit_price) * parseFloat(product.quantity)).toFixed(2)}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="text-center py-4 text-gray-400">
+                  <td colSpan={order.type_order === "wholesale" ? "5" : "3"} className="text-center py-4 text-gray-400">
                     لا توجد منتجات
                   </td>
                 </tr>
@@ -175,6 +201,11 @@ export default function OrderPrintPreviewModal({ show, onClose, order }) {
                   : "غير محدد"}
               </span>
             </p>
+            {order.type_order === "wholesale" && (
+              <p className="text-lg font-bold text-gray-800 mt-4">
+                الإجمالي الكلي: {grandTotal} {order.currency?.code || "ريال"}
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-center justify-end text-sm">
             <p className="mb-8">التوقيع: ....................................</p>
