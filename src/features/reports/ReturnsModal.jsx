@@ -68,6 +68,10 @@ const ReturnsModal = ({ show, onClose, onPreviewAndPrint, onOpenReturnDetails })
         const uniqueCurrencies = Array.from(new Map(currencies.map((c) => [c.value, c])).values());
         setCurrencyOptions(uniqueCurrencies);
 
+        if (uniqueCurrencies.length > 0) {
+          setFilters(prev => ({ ...prev, currency: uniqueCurrencies[0].value }));
+        }
+
         const returnDates = response.data
           .map((item) => new Date(item.return_date))
           .filter((d) => !isNaN(d));
@@ -117,6 +121,7 @@ const ReturnsModal = ({ show, onClose, onPreviewAndPrint, onOpenReturnDetails })
     { key: "currency", label: "العملة" },
     { key: "actions", label: "إجراءات" }, // ✅ إضافة عمود الإجراءات
   ];
+  const grandTotal = data.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
 
   return (
     <ModalWrapper
@@ -151,9 +156,9 @@ const ReturnsModal = ({ show, onClose, onPreviewAndPrint, onOpenReturnDetails })
             label="العملة"
             value={filters.currency}
             onChange={(val) => setFilters((prev) => ({ ...prev, currency: val }))}
-            options={[{ label: "كل العملات", value: null }, ...currencyOptions]}
+            options={currencyOptions}
             placeholder="اختر العملة"
-            isClearable
+            isClearable={false}
           />
           <FormInputField
             type="date"
@@ -199,8 +204,20 @@ const ReturnsModal = ({ show, onClose, onPreviewAndPrint, onOpenReturnDetails })
           )}
         />
       </div>
+          {!loading && data.length > 0 && (
+  <div className="overflow-x-auto flex justify-start text-left" dir="ltr">
+    <table>
+      <tfoot>
+        <tr className="font-bold">
+          <td className="pl-90 pr-3 text-left pb-4">{grandTotal}</td>
+          <td className="text-right pb-4"> الإجمالي الكلي </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+)}
       <div className="flex justify-center">
-        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data)} />
+        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data , grandTotal)} />
       </div>
     </ModalWrapper>
   );

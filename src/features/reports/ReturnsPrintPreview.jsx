@@ -1,4 +1,3 @@
-// src/features/reports/ReturnsPrintPreview.jsx
 import React, { useEffect, useState } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import logo from "../../assets/logo.png";
@@ -19,7 +18,8 @@ const companyInfo = {
   },
 };
 
-const ReturnsPrintPreview = ({ show, onClose, reportData }) => {
+// ✅ استقبال grandTotal
+const ReturnsPrintPreview = ({ show, onClose, reportData, grandTotal }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -109,6 +109,20 @@ const ReturnsPrintPreview = ({ show, onClose, reportData }) => {
                 </tr>
               )}
             </tbody>
+            {/* ✅ استخدام grandTotal المستلم */}
+            {reportData.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                  <td colSpan="6" className="py-2 px-2 text-left">
+                    الإجمالي الكلي
+                  </td>
+                  <td className="py-2 px-2 text-right">
+                    {/* يمكنك تنسيق الرقم هنا إذا لزم الأمر */}
+                    {grandTotal}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 

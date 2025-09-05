@@ -20,7 +20,22 @@ const companyInfo = {
 // شعار مؤقت
 import logo from "/logo.png";
 
-const SalesRepVouchersPrintPreview = ({ show, onClose, reportData }) => {
+// دالة لتنسيق الأرقام مع العملة (أرقام إنجليزية)
+const formatCurrency = (value, currency = "YER") => {
+  if (!value) return "0";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch (e) {
+    return Number(value).toLocaleString("en-US");
+  }
+};
+
+const SalesRepVouchersPrintPreview = ({ show, onClose, reportData, grandTotal }) => {
   return (
     <ModalWrapper
       show={show}
@@ -64,25 +79,12 @@ const SalesRepVouchersPrintPreview = ({ show, onClose, reportData }) => {
           <table className="min-w-full divide-y divide-gray-200 border border-gray-300 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="py-2 px-2 border border-gray-300">
-                  رقم السند
-                </th>
-                {/* ❌ تم حذف عمود "اسم العميل" هنا */}
-                <th className="py-2 px-2 border border-gray-300">
-                  اسم المندوب
-                </th>
-                <th className="py-2 px-2 border border-gray-300">
-                  تاريخ السند
-                </th>
-                <th className="py-2 px-2 border border-gray-300">
-                  المبلغ
-                </th>
-                <th className="py-2 px-2 border border-gray-300">
-                  العملة
-                </th>
-                <th className="py-2 px-2 border border-gray-300">
-                  الملاحظة
-                </th>
+                <th className="py-2 px-2 border border-gray-300">رقم السند</th>
+                <th className="py-2 px-2 border border-gray-300">اسم المندوب</th>
+                <th className="py-2 px-2 border border-gray-300">تاريخ السند</th>
+                <th className="py-2 px-2 border border-gray-300">المبلغ</th>
+                <th className="py-2 px-2 border border-gray-300">العملة</th>
+                <th className="py-2 px-2 border border-gray-300">الملاحظة</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -91,7 +93,6 @@ const SalesRepVouchersPrintPreview = ({ show, onClose, reportData }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 border border-gray-200">
                     {item.voucher_number}
                   </td>
-                  {/* ❌ وتم حذف الخلية المقابلة هنا */}
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 border border-gray-200">
                     {item.sales_rep || "غير معروف"}
                   </td>
@@ -99,7 +100,7 @@ const SalesRepVouchersPrintPreview = ({ show, onClose, reportData }) => {
                     {item.payment_date}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 border border-gray-200">
-                    {parseFloat(item.amount).toLocaleString()}
+                    {item.amount ? Number(item.amount).toLocaleString("en-US") : "0"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-900 border border-gray-200">
                     {item.currency || "N/A"}
@@ -110,17 +111,28 @@ const SalesRepVouchersPrintPreview = ({ show, onClose, reportData }) => {
                 </tr>
               ))}
             </tbody>
+            {/* ✅ الإجمالي الكلي */}
+            {reportData.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                  <td colSpan="5" className="pl-50 text-left">
+                    الإجمالي الكلي   {formatCurrency(grandTotal, reportData[0]?.currency || "YER")}
+                  </td>
+                  
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
         <div className="flex justify-center pt-2 print:hidden">
-        <button
-          onClick={() => window.print()}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-200"
-        >
-طباعة التقرير        </button>
+          <button
+            onClick={() => window.print()}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-200"
+          >
+            طباعة التقرير
+          </button>
+        </div>
       </div>
-      </div>
-      
     </ModalWrapper>
   );
 };

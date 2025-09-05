@@ -32,9 +32,7 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
   };
 
   useEffect(() => {
-    if (show) {
-      fetchVouchers();
-    }
+    if (show) fetchVouchers();
   }, [show]);
 
   const fetchVouchers = async () => {
@@ -42,40 +40,44 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
       setLoading(true);
       const response = await get("admin/payment-vouchers", token);
       if (response && Array.isArray(response.data)) {
-        // تصفية السندات التي يكون فيها حقل العميل null
         const filteredData = response.data.filter(item => item.customer !== null);
         setAllVouchers(filteredData);
         setData(filteredData);
 
-        // استخراج أسماء المندوبين الفريدين
+        // خيارات المندوبين
         const reps = filteredData
-          .map((item) => item.sales_rep)
-          .filter((name) => name)
-          .map((name) => ({ label: name, value: name }));
-        const uniqueReps = Array.from(new Map(reps.map((r) => [r.value, r])).values());
+          .map(item => item.sales_rep)
+          .filter(Boolean)
+          .map(name => ({ label: name, value: name }));
+        const uniqueReps = Array.from(new Map(reps.map(r => [r.value, r])).values());
         setRepOptions(uniqueReps);
 
-        // استخراج العملاء الفريدين
+        // خيارات العملاء
         const customers = filteredData
-          .map((item) => item.customer)
-          .filter((c) => c)
-          .map((c) => ({ label: c, value: c }));
-        const uniqueCustomers = Array.from(new Map(customers.map((c) => [c.value, c])).values());
+          .map(item => item.customer)
+          .filter(Boolean)
+          .map(c => ({ label: c, value: c }));
+        const uniqueCustomers = Array.from(new Map(customers.map(c => [c.value, c])).values());
         setCustomerOptions(uniqueCustomers);
 
-        // استخراج العملات الفريدة
+        // خيارات العملات
         const currencies = filteredData
-          .map((item) => item.currency)
-          .filter((curr) => curr)
-          .map((curr) => ({ label: curr, value: curr }));
-        const uniqueCurrencies = Array.from(new Map(currencies.map((c) => [c.value, c])).values());
+          .map(item => item.currency)
+          .filter(Boolean)
+          .map(curr => ({ label: curr, value: curr }));
+        const uniqueCurrencies = Array.from(new Map(currencies.map(c => [c.value, c])).values());
         setCurrencyOptions(uniqueCurrencies);
 
-        // تحديد أقدم وأحدث تاريخ
-        const voucherDates = filteredData
-          .map((item) => new Date(item.payment_date))
-          .filter((d) => !isNaN(d));
+        // تحديد القيمة الافتراضية للعملة
+        if (uniqueCurrencies.length > 0) {
+          setFilters(prev => ({
+            ...prev,
+            currency: uniqueCurrencies[0].value,
+          }));
+        }
 
+        // تحديد التاريخ الافتراضي
+        const voucherDates = filteredData.map(item => new Date(item.payment_date)).filter(d => !isNaN(d));
         if (voucherDates.length > 0) {
           const minDate = new Date(Math.min(...voucherDates));
           const today = new Date();
@@ -94,18 +96,16 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
   };
 
   useEffect(() => {
-    const filtered = allVouchers.filter((item) => {
+    const filtered = allVouchers.filter(item => {
       const repMatch = !filters.repName || item.sales_rep === filters.repName;
       const customerMatch = !filters.customerName || item.customer === filters.customerName;
       const currencyMatch = !filters.currency || item.currency === filters.currency;
-      
+
       const voucherDate = new Date(item.payment_date);
       const fromDate = filters.fromDate ? new Date(filters.fromDate) : null;
       const toDate = filters.toDate ? new Date(filters.toDate) : null;
+      const dateMatch = (!fromDate || voucherDate >= fromDate) && (!toDate || voucherDate <= toDate);
 
-      const dateMatch =
-        (!fromDate || voucherDate >= fromDate) && (!toDate || voucherDate <= toDate);
-      
       return repMatch && customerMatch && currencyMatch && dateMatch;
     });
     setData(filtered);
@@ -118,8 +118,10 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
     { key: "payment_date", label: "تاريخ السند" },
     { key: "amount", label: "المبلغ" },
     { key: "currency", label: "العملة" },
-    { key: "note", label: "الملاحظة" }, // ✅ تم إضافة عمود الملاحظة هنا
+    { key: "note", label: "الملاحظة" },
   ];
+
+  const grandTotal = data.reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
   return (
     <ModalWrapper
@@ -128,55 +130,58 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
       isVisible={true}
       title="تقرير سندات قبض العملاء"
       maxWidth="max-w-7xl"
-      maxHeight="max-h-[90vh]"
+      maxHeight="max-h-[100vh]"
     >
-      <div className="p-4 space-y-6 ">
+      <div className="p-4 space-y-6">
+        {/* Filters */}
         <div className="flex flex-row flex-wrap items-center gap-4 pb-4 border-b border-gray-300">
           <SearchableSelectFieldV4
             label="المندوب"
             value={filters.repName}
-            onChange={(val) => setFilters((prev) => ({ ...prev, repName: val }))}
-            options={[{ label: "كل المندوبين", value: null }, ...repOptions]}
+            onChange={val => setFilters(prev => ({ ...prev, repName: val }))}
+            options={repOptions}
             placeholder="اختر المندوب"
             isClearable
           />
           <SearchableSelectFieldV4
             label="العميل"
             value={filters.customerName}
-            onChange={(val) => setFilters((prev) => ({ ...prev, customerName: val }))}
-            options={[{ label: "كل العملاء", value: null }, ...customerOptions]}
+            onChange={val => setFilters(prev => ({ ...prev, customerName: val }))}
+            options={customerOptions}
             placeholder="اختر العميل"
             isClearable
           />
           <SearchableSelectFieldV4
             label="العملة"
             value={filters.currency}
-            onChange={(val) => setFilters((prev) => ({ ...prev, currency: val }))}
-            options={[{ label: "كل العملات", value: null }, ...currencyOptions]}
+            onChange={val => setFilters(prev => ({ ...prev, currency: val }))}
+            options={currencyOptions}
             placeholder="اختر العملة"
-            isClearable
+            isClearable={false}
           />
           <FormInputField
             type="date"
             name="fromDate"
             label="من تاريخ"
             value={filters.fromDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, fromDate: e.target.value }))}
+            onChange={e => setFilters(prev => ({ ...prev, fromDate: e.target.value }))}
           />
           <FormInputField
             type="date"
             name="toDate"
             label="إلى تاريخ"
             value={filters.toDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, toDate: e.target.value }))}
+            onChange={e => setFilters(prev => ({ ...prev, toDate: e.target.value }))}
           />
         </div>
+
+        {/* Table */}
         <Table2
           headers={headers}
           data={data}
           totalCount={data.length}
           loading={loading}
-          renderRow={(item) => (
+          renderRow={item => (
             <>
               <td className="py-2 px-3">{item.voucher_number}</td>
               <td className="py-2 px-3">{item.customer || "غير معروف"}</td>
@@ -184,13 +189,29 @@ const CustomerVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
               <td className="py-2 px-3">{item.payment_date}</td>
               <td className="py-2 px-3">{item.amount}</td>
               <td className="py-2 px-3">{item.currency || "N/A"}</td>
-              <td className="py-2 px-3">{item.note || "-"}</td> {/* ✅ تم إضافة عرض الملاحظة هنا */}
+              <td className="py-2 px-3">{item.note || "-"}</td>
             </>
           )}
         />
-      </div>
-      <div className="flex justify-center">
-        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data)} />
+
+        {/* Grand Total */}
+        {!loading && data.length > 0 && (
+          <div className="overflow-x-auto flex justify-start text-left" dir="ltr">
+            <table>
+              <tfoot>
+                <tr className="font-bold">
+                  <td className="pl-100 pr-3">{grandTotal}</td>
+                  <td className="text-right">الإجمالي الكلي</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* Preview Button */}
+        <div className="flex justify-center">
+          <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data, grandTotal)} />
+        </div>
       </div>
     </ModalWrapper>
   );

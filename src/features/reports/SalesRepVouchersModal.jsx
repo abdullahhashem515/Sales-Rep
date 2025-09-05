@@ -58,6 +58,11 @@ const SalesRepVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
         const uniqueCurrencies = Array.from(new Map(currencies.map((c) => [c.value, c])).values());
         setCurrencyOptions(uniqueCurrencies);
 
+        // ✅ تحديث: ضبط القيمة الافتراضية للعملة
+        if (uniqueCurrencies.length > 0) {
+          setFilters(prev => ({ ...prev, currency: uniqueCurrencies[0].value }));
+        }
+
         const voucherDates = filteredData
           .map((item) => new Date(item.payment_date))
           .filter((d) => !isNaN(d));
@@ -104,7 +109,7 @@ const SalesRepVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
     { key: "currency", label: "العملة" },
     { key: "note", label: "الملاحظة" },
   ];
-
+  const grandTotal = data.reduce((sum, row) => sum + Number(row.amount || 0), 0);
   return (
     <ModalWrapper
       show={show}
@@ -128,9 +133,9 @@ const SalesRepVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
             label="العملة"
             value={filters.currency}
             onChange={(val) => setFilters((prev) => ({ ...prev, currency: val }))}
-            options={[{ label: "كل العملات", value: null }, ...currencyOptions]}
+            options={currencyOptions} // ✅ تم إبقاء الخيارات كاملة
             placeholder="اختر العملة"
-            isClearable
+            isClearable={false} // ✅ تم تغيير isClearable إلى false
           />
           <FormInputField
             type="date"
@@ -164,8 +169,20 @@ const SalesRepVouchersModal = ({ show, onClose, onPreviewAndPrint }) => {
           )}
         />
       </div>
+      {!loading && data.length > 0 && (
+  <div className="overflow-x-auto flex justify-start text-left" dir="ltr">
+    <table className="ml-0 mr-auto">
+      <tfoot>
+        <tr className="font-bold">
+          <td className="pl-100 pb-2 pt-2 pr-3 text-left">{grandTotal}</td>
+          <td className="text-right"> الإجمالي الكلي </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+)}
       <div className="flex justify-center">
-        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data)} />
+        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data ,grandTotal)} />
       </div>
     </ModalWrapper>
   );

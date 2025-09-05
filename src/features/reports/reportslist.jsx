@@ -23,6 +23,8 @@ import SalesRepVouchersModal from "./SalesRepVouchersModal";
 import SalesRepVouchersPrintPreview from "./SalesRepVouchersPrintPreview";
 import InventoryReportModal from "./InventoryReportModal";
 import InventoryReportPrintPreview from "./InventoryReportPrintPreview";
+import RepPerformanceModal from "./RepPerformanceModal";
+import RepPerformancePrintPreview from "./RepPerformancePrintPreview";
 import {
   ChartBarIcon,
   ShoppingBagIcon,
@@ -63,24 +65,38 @@ export default function ReportsList() {
   const [isSalesReportsPrintPreviewOpen, setIsSalesReportsPrintPreviewOpen] = useState(false);
   const [salesReportData, setSalesReportData] = useState([]);
   const [salesReportFilters, setSalesReportFilters] = useState({});
-  const [salesReportGrandTotal, setSalesReportGrandTotal] = useState(0); // ✅ جديد
+  const [salesReportGrandTotal, setSalesReportGrandTotal] = useState(0);
+
   const [isProductsAndPricesModalOpen, setIsProductsAndPricesModalOpen] = useState(false);
   const [isProductsAndPricesPrintPreviewOpen, setIsProductsAndPricesPrintPreviewOpen] = useState(false);
   const [productsAndPricesData, setProductsAndPricesData] = useState([]);
+
   const [isReturnsModalOpen, setIsReturnsModalOpen] = useState(false);
   const [isReturnsPrintPreviewOpen, setIsReturnsPrintPreviewOpen] = useState(false);
   const [returnsData, setReturnsData] = useState([]);
+  const [returnsGrandTotal, setReturnsGrandTotal] = useState(0);
   const [isReturnDetailsModalOpen, setIsReturnDetailsModalOpen] = useState(false);
   const [selectedReturnDetails, setSelectedReturnDetails] = useState(null);
+
   const [isCustomerVouchersModalOpen, setIsCustomerVouchersModalOpen] = useState(false);
   const [isCustomerVouchersPrintPreviewOpen, setIsCustomerVouchersPrintPreviewOpen] = useState(false);
   const [customerVouchersData, setCustomerVouchersData] = useState([]);
+
   const [isSalesRepVouchersModalOpen, setIsSalesRepVouchersModalOpen] = useState(false);
   const [isSalesRepVouchersPrintPreviewOpen, setIsSalesRepVouchersPrintPreviewOpen] = useState(false);
   const [salesRepVouchersData, setSalesRepVouchersData] = useState([]);
+  const [salesRepVouchersGrandTotal, setSalesRepVouchersGrandTotal] = useState(0);
+
   const [isInventoryReportModalOpen, setIsInventoryReportModalOpen] = useState(false);
-const [isInventoryReportPrintPreviewOpen, setIsInventoryReportPrintPreviewOpen] = useState(false);
-const [inventoryReportData, setInventoryReportData] = useState([]);
+  const [isInventoryReportPrintPreviewOpen, setIsInventoryReportPrintPreviewOpen] = useState(false);
+  const [inventoryReportData, setInventoryReportData] = useState([]);
+
+  const [customerVouchersGrandTotal, setCustomerVouchersGrandTotal] = useState(0);
+
+  // ✅ الحالات الجديدة لتقرير أداء المندوبين
+  const [isRepPerformanceModalOpen, setIsRepPerformanceModalOpen] = useState(false);
+  const [isRepPerformancePrintPreviewOpen, setIsRepPerformancePrintPreviewOpen] = useState(false);
+  const [repPerformanceData, setRepPerformanceData] = useState(null);
 
   const handleOpenReportModal = (data, type = "wholesale") => {
     setReportDataToPrint(data);
@@ -95,7 +111,7 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
     setSelectedOrderData(order);
     setIsOrderDetailsModalOpen(true);
   };
-  
+
   const handleRetailPreviewAndPrint = (data) => {
     setRetailReportData(data);
     setIsRetailReportDetailsModalOpen(true);
@@ -120,7 +136,6 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
     setIsInvoiceDetailsModalOpen(true);
   };
 
-  // ✅ تعديل: استقبل grandTotal وخزنه
   const handleSalesPreviewAndPrint = (data, filters, grandTotal) => {
     setSalesReportData(data);
     setSalesReportFilters(filters);
@@ -128,8 +143,9 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
     setIsSalesReportsPrintPreviewOpen(true);
   };
 
-  const handleReturnsPreviewAndPrint = (data) => {
+  const handleReturnsPreviewAndPrint = (data, grandTotal) => {
     setReturnsData(data);
+    setReturnsGrandTotal(grandTotal);
     setIsReturnsPrintPreviewOpen(true);
   };
 
@@ -138,19 +154,28 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
     setIsReturnDetailsModalOpen(true);
   };
 
-  const handleCustomerVouchersPreviewAndPrint = (data) => {
+  const handleCustomerVouchersPreviewAndPrint = (data, grandTotal) => {
     setCustomerVouchersData(data);
+    setCustomerVouchersGrandTotal(grandTotal);
     setIsCustomerVouchersPrintPreviewOpen(true);
   };
 
-  const handleSalesRepVouchersPreviewAndPrint = (data) => {
+  const handleSalesRepVouchersPreviewAndPrint = (data, grandTotal) => {
     setSalesRepVouchersData(data);
+    setSalesRepVouchersGrandTotal(grandTotal);
     setIsSalesRepVouchersPrintPreviewOpen(true);
   };
+
   const handleInventoryPreviewAndPrint = (data) => {
     setInventoryReportData(data);
     setIsInventoryReportPrintPreviewOpen(true);
-};
+  };
+
+  // ✅ الدالة الجديدة للتعامل مع معاينة تقرير أداء المندوبين
+  const handleRepPerformancePreview = (data) => {
+    setRepPerformanceData(data);
+    setIsRepPerformancePrintPreviewOpen(true);
+  };
 
   return (
     <MainLayout>
@@ -199,16 +224,17 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
             colorClass="bg-purple-600 hover:bg-purple-700"
             onClick={() => setIsReturnsModalOpen(true)}
           />
-         <ReportButton
-    title="المخزون"
-    icon={<CubeIcon className="h-10 w-10" />}
-    colorClass="bg-teal-600 hover:bg-teal-700"
-    onClick={() => setIsInventoryReportModalOpen(true)}
-/>
           <ReportButton
-            title="إجمالي الأداء"
+            title="المخزون"
+            icon={<CubeIcon className="h-10 w-10" />}
+            colorClass="bg-teal-600 hover:bg-teal-700"
+            onClick={() => setIsInventoryReportModalOpen(true)}
+          />
+          <ReportButton
+            title="أداء المندوبين"
             icon={<SparklesIcon className="h-10 w-10" />}
             colorClass="bg-indigo-600 hover:bg-indigo-700"
+            onClick={() => setIsRepPerformanceModalOpen(true)}
           />
           <ReportButton
             title="الأصناف وأسعارها"
@@ -218,6 +244,8 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
           />
         </div>
       </div>
+
+      {/* تقارير المندوبين */}
       <RepAndOrdersModal
         show={isRepOrdersModalOpen}
         onClose={() => setIsRepOrdersModalOpen(false)}
@@ -230,6 +258,8 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         onClose={() => setIsReportDetailsModalOpen(false)}
         reportData={reportDataToPrint}
       />
+
+      {/* زيارات المندوبين */}
       <VisitsRepAndVisitsModal
         show={isVisitsRepAndVisitsModalOpen}
         onClose={() => setIsVisitsRepAndVisitsModalOpen(false)}
@@ -240,7 +270,8 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         onClose={() => setIsVisitsReportPrintPreviewOpen(false)}
         reportData={visitsReportData}
       />
-      
+
+      {/* المبيعات */}
       <SalesRepAndSalesModal
         show={isSalesRepAndSalesModalOpen}
         onClose={() => setIsSalesRepAndSalesModalOpen(false)}
@@ -252,14 +283,16 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         onClose={() => setIsSalesReportsPrintPreviewOpen(false)}
         reportData={salesReportData}
         filters={salesReportFilters}
-        grandTotal={salesReportGrandTotal} // ✅ تمرير الإجمالي الكلي
+        grandTotal={salesReportGrandTotal}
       />
+
       <InvoiceDetailsModal
         show={isInvoiceDetailsModalOpen}
         onClose={() => setIsInvoiceDetailsModalOpen(false)}
         invoice={selectedInvoice}
       />
-    
+
+      {/* التجزئة */}
       <RetailRepAndOrdersModal
         show={isRetailRepOrdersModalOpen}
         onClose={() => setIsRetailRepOrdersModalOpen(false)}
@@ -277,6 +310,8 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         onClose={() => setIsOrderDetailsModalOpen(false)}
         order={selectedOrderData}
       />
+
+      {/* الأصناف والأسعار */}
       <ProductsAndPricesModal
         show={isProductsAndPricesModalOpen}
         onClose={() => setIsProductsAndPricesModalOpen(false)}
@@ -287,6 +322,8 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         onClose={() => setIsProductsAndPricesPrintPreviewOpen(false)}
         reportData={productsAndPricesData}
       />
+
+      {/* المرتجعات */}
       <ReturnsModal
         show={isReturnsModalOpen}
         onClose={() => setIsReturnsModalOpen(false)}
@@ -297,12 +334,15 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         show={isReturnsPrintPreviewOpen}
         onClose={() => setIsReturnsPrintPreviewOpen(false)}
         reportData={returnsData}
+        grandTotal={returnsGrandTotal}
       />
       <ReturnDetailsModal
         show={isReturnDetailsModalOpen}
         onClose={() => setIsReturnDetailsModalOpen(false)}
         returnData={selectedReturnDetails}
       />
+
+      {/* سندات العملاء */}
       <CustomerVouchersModal
         show={isCustomerVouchersModalOpen}
         onClose={() => setIsCustomerVouchersModalOpen(false)}
@@ -312,7 +352,10 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         show={isCustomerVouchersPrintPreviewOpen}
         onClose={() => setIsCustomerVouchersPrintPreviewOpen(false)}
         reportData={customerVouchersData}
+        grandTotal={customerVouchersGrandTotal}
       />
+
+      {/* سندات المندوبين */}
       <SalesRepVouchersModal
         show={isSalesRepVouchersModalOpen}
         onClose={() => setIsSalesRepVouchersModalOpen(false)}
@@ -322,17 +365,32 @@ const [inventoryReportData, setInventoryReportData] = useState([]);
         show={isSalesRepVouchersPrintPreviewOpen}
         onClose={() => setIsSalesRepVouchersPrintPreviewOpen(false)}
         reportData={salesRepVouchersData}
+        grandTotal={salesRepVouchersGrandTotal}
       />
+
+      {/* المخزون */}
       <InventoryReportModal
-    show={isInventoryReportModalOpen}
-    onClose={() => setIsInventoryReportModalOpen(false)}
-    onPreviewAndPrint={handleInventoryPreviewAndPrint}
-/>
-<InventoryReportPrintPreview
-    show={isInventoryReportPrintPreviewOpen}
-    onClose={() => setIsInventoryReportPrintPreviewOpen(false)}
-    reportData={inventoryReportData}
-/>
+        show={isInventoryReportModalOpen}
+        onClose={() => setIsInventoryReportModalOpen(false)}
+        onPreviewAndPrint={handleInventoryPreviewAndPrint}
+      />
+      <InventoryReportPrintPreview
+        show={isInventoryReportPrintPreviewOpen}
+        onClose={() => setIsInventoryReportPrintPreviewOpen(false)}
+        reportData={inventoryReportData}
+      />
+
+      {/* ✅ تقرير أداء المندوبين الجديد */}
+      <RepPerformanceModal
+        show={isRepPerformanceModalOpen}
+        onClose={() => setIsRepPerformanceModalOpen(false)}
+        onPreviewAndPrint={handleRepPerformancePreview}
+      />
+      <RepPerformancePrintPreview
+        show={isRepPerformancePrintPreviewOpen}
+        onClose={() => setIsRepPerformancePrintPreviewOpen(false)}
+        reportData={repPerformanceData}
+      />
     </MainLayout>
   );
 }

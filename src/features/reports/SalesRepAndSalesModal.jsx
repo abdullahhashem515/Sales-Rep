@@ -1,4 +1,3 @@
-// src/features/reports/SalesRepAndSalesModal.jsx
 import React, { useState, useEffect } from "react";
 import ModalWrapper from "../../components/shared/ModalWrapper";
 import SearchableSelectFieldV4 from "../../components/shared/SearchableSelectFieldV4";
@@ -8,7 +7,6 @@ import { get } from "../../utils/apiService";
 import { useAuth } from "../../contexts/AuthContext";
 import AddEntityButton from "../../components/shared/AddEntityButton";
 
-// ✅ تم إضافة onOpenInvoiceDetails إلى props
 const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoiceDetails }) => {
   const { token } = useAuth();
   const [filters, setFilters] = useState({
@@ -32,7 +30,6 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
     credit: "آجل",
   };
 
-  // ✅ دالة مساعدة لتنسيق التاريخ بالشكل YYYY-MM-DD
   const formatDate = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -40,11 +37,8 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
     return `${y}-${m}-${d}`;
   };
 
-  // ✅ جلب البيانات وتحديد الفلاتر الافتراضية عند فتح المودال
   useEffect(() => {
-    if (show) {
-      fetchSales();
-    }
+    if (show) fetchSales();
   }, [show]);
 
   const fetchSales = async () => {
@@ -55,35 +49,37 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
         setAllSales(response.data);
         setData(response.data);
 
-        // ✅ استخراج المندوبين الفريدين
+        // استخراج المندوبين الفريدين
         const reps = response.data
           .map((item) => item.user)
           .filter((u) => u && u.id && u.name)
           .map((u) => ({ label: u.name, value: u.id }));
-        const uniqueReps = Array.from(new Map(reps.map((r) => [r.value, r])).values());
-        setRepOptions(uniqueReps);
+        setRepOptions(Array.from(new Map(reps.map(r => [r.value, r])).values()));
 
-        // ✅ استخراج العملاء الفريدين
+        // استخراج العملاء الفريدين
         const customers = response.data
           .map((item) => item.customer)
           .filter((c) => c && c.id && c.name)
           .map((c) => ({ label: c.name, value: c.id }));
-        const uniqueCustomers = Array.from(new Map(customers.map((c) => [c.value, c])).values());
-        setCustomerOptions(uniqueCustomers);
+        setCustomerOptions(Array.from(new Map(customers.map(c => [c.value, c])).values()));
 
-        // ✅ استخراج العملات الفريدة
+        // استخراج العملات الفريدة
         const currencies = response.data
           .map((item) => item.currency)
           .filter((curr) => curr && curr.id && curr.code)
           .map((curr) => ({ label: curr.code, value: curr.id }));
-        const uniqueCurrencies = Array.from(new Map(currencies.map((c) => [c.value, c])).values());
+        const uniqueCurrencies = Array.from(new Map(currencies.map(c => [c.value, c])).values());
         setCurrencyOptions(uniqueCurrencies);
 
-        // ✅ تحديد أقدم وأحدث تاريخ لضبط الفلاتر الافتراضية
+        // ✅ تحديث: ضبط القيمة الافتراضية للعملة
+        if (uniqueCurrencies.length > 0) {
+          setFilters(prev => ({ ...prev, currencyCode: uniqueCurrencies[0].value }));
+        }
+
+        // تحديد التواريخ الافتراضية
         const invoiceDates = response.data
           .map((item) => new Date(item.date))
           .filter((d) => !isNaN(d));
-
         if (invoiceDates.length > 0) {
           const minDate = new Date(Math.min(...invoiceDates));
           const today = new Date();
@@ -101,27 +97,23 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
     }
   };
 
-  // ✅ تطبيق الفلاتر
   useEffect(() => {
     const filtered = allSales.filter((invoice) => {
       const repMatch = !filters.repName || invoice.user?.id === filters.repName;
       const customerMatch = !filters.customerName || invoice.customer?.id === filters.customerName;
       const currencyMatch = !filters.currencyCode || invoice.currency?.id === filters.currencyCode;
       const paymentMatch = !filters.paymentType || invoice.payment_type === filters.paymentType;
-      
+
       const invoiceDate = new Date(invoice.date);
       const fromDate = filters.fromDate ? new Date(filters.fromDate) : null;
       const toDate = filters.toDate ? new Date(filters.toDate) : null;
+      const dateMatch = (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
 
-      const dateMatch =
-        (!fromDate || invoiceDate >= fromDate) && (!toDate || invoiceDate <= toDate);
-      
       return repMatch && customerMatch && currencyMatch && paymentMatch && dateMatch;
     });
     setData(filtered);
   }, [filters, allSales]);
 
-  // ✅ تم إضافة عمود الإجراءات
   const headers = [
     { key: "invoice_number", label: "رقم الفاتورة" },
     { key: "repName", label: "اسم المندوب" },
@@ -130,10 +122,9 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
     { key: "currency_code", label: "العملة" },
     { key: "payment_type", label: "نوع الدفع" },
     { key: "total_amount", label: "الإجمالي" },
-    { key: "actions", label: "الإجراءات" }, // ✅ العمود الجديد
+    { key: "actions", label: "الإجراءات" },
   ];
 
-  // ✅ حساب الإجمالي الكلي
   const grandTotal = data.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
 
   return (
@@ -146,38 +137,36 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
       maxHeight="max-h-[100vh]"
     >
       <div className="p-4 space-y-6">
-        {/* حقول التصفية */}
         <div className="flex flex-row flex-wrap items-center gap-4 pb-4 border-b border-gray-300">
           <SearchableSelectFieldV4
             label="المندوب"
             value={filters.repName}
-            onChange={(val) => setFilters((prev) => ({ ...prev, repName: val }))}
-            options={[{ label: "كل المندوبين", value: null }, ...repOptions]}
+            onChange={(val) => setFilters(prev => ({ ...prev, repName: val }))}
+            options={repOptions}
             placeholder="اختر المندوب"
             isClearable
           />
           <SearchableSelectFieldV4
             label="العميل"
             value={filters.customerName}
-            onChange={(val) => setFilters((prev) => ({ ...prev, customerName: val }))}
-            options={[{ label: "كل العملاء", value: null }, ...customerOptions]}
+            onChange={(val) => setFilters(prev => ({ ...prev, customerName: val }))}
+            options={customerOptions}
             placeholder="اختر العميل"
             isClearable
           />
           <SearchableSelectFieldV4
             label="العملة"
             value={filters.currencyCode}
-            onChange={(val) => setFilters((prev) => ({ ...prev, currencyCode: val }))}
-            options={[{ label: "كل العملات", value: null }, ...currencyOptions]}
+            onChange={(val) => setFilters(prev => ({ ...prev, currencyCode: val }))}
+            options={currencyOptions}
             placeholder="اختر العملة"
-            isClearable
+            isClearable={false}
           />
           <SearchableSelectFieldV4
             label="نوع الدفع"
             value={filters.paymentType}
-            onChange={(val) => setFilters((prev) => ({ ...prev, paymentType: val }))}
+            onChange={(val) => setFilters(prev => ({ ...prev, paymentType: val }))}
             options={[
-              { label: "كل الأنواع", value: null },
               { label: "نقداً", value: "cash" },
               { label: "آجل", value: "credit" },
             ]}
@@ -189,18 +178,17 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
             name="fromDate"
             label="من تاريخ"
             value={filters.fromDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, fromDate: e.target.value }))}
+            onChange={(e) => setFilters(prev => ({ ...prev, fromDate: e.target.value }))}
           />
           <FormInputField
             type="date"
             name="toDate"
             label="إلى تاريخ"
             value={filters.toDate}
-            onChange={(e) => setFilters((prev) => ({ ...prev, toDate: e.target.value }))}
+            onChange={(e) => setFilters(prev => ({ ...prev, toDate: e.target.value }))}
           />
         </div>
 
-        {/* جدول البيانات */}
         <Table2
           headers={headers}
           data={data}
@@ -215,7 +203,6 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
               <td className="py-2 px-3">{row.currency?.code || "غير معروف"}</td>
               <td className="py-2 px-3">{paymentTypeMap[row.payment_type] || row.payment_type}</td>
               <td className="py-2 px-3">{row.total_amount}</td>
-              {/* ✅ الخلية الجديدة لعمود الإجراءات */}
               <td className="py-2 px-3">
                 <button
                   onClick={() => onOpenInvoiceDetails(row)}
@@ -228,22 +215,25 @@ const SalesRepAndSalesModal = ({ show, onClose, onPreviewAndPrint, onOpenInvoice
           )}
         />
 
-  {!loading && data.length > 0 && (
-  <div className="overflow-x-auto bg-red-400 flex justify-start text-left" dir="ltr">
-    <table className="ml-0 mr-auto">
-      <tfoot>
-        <tr className="font-bold">
-          <td className="pl-35 pr-3 text-left">{grandTotal}</td>
-          <td className="text-right"> الإجمالي الكلي </td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-)}
-      </div>
+        {!loading && data.length > 0 && (
+          <div className="overflow-x-auto flex justify-start text-left" dir="ltr">
+            <table>
+              <tfoot>
+                <tr className="font-bold">
+                  <td className="pl-35 pr-3 text-left">{grandTotal}</td>
+                  <td className="text-right">الإجمالي الكلي</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
 
-      <div className="flex justify-center">
-        <AddEntityButton label="معاينة للطباعة" onClick={() => onPreviewAndPrint(data, filters,grandTotal)} />
+        <div className="flex justify-center">
+          <AddEntityButton
+            label="معاينة للطباعة"
+            onClick={() => onPreviewAndPrint(data, filters, grandTotal)}
+          />
+        </div>
       </div>
     </ModalWrapper>
   );
